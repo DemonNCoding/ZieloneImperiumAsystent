@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zielone Imperium Assistant</title>
+  <style>
+    :root {
+      --md-surface: #FAFAFA;
+      --md-surface-variant: #E0E0E0;
+      --md-on-surface: #212121;
+      --md-on-surface-variant: #757575;
+      --md-outline: #BDBDBD;
+      --md-outline-variant: #E0E0E0;
+      --md-background: #F5F5F5;
+      
+      --garden-primary: #2E7D32;
+      --garden-container: #C8E6C9;
+      --garden-on-container: #1B5E20;
+      
+      --water-primary: #0277BD;
+      --water-container: #B3E5FC;
+      --water-on-container: #01579B;
+      
+      --park-primary: #EF6C00;
+      --park-container: #FFE0B2;
+      --park-on-container: #E65100;
+      
+      --bonsai-primary: #00695C;
+      --bonsai-container: #B2DFDB;
+      --bonsai-on-container: #004D40;
+      
+      --birds-primary: #1565C0;
+      --birds-container: #BBDEFB;
+      --birds-on-container: #0D47A1;
+      
+      --mine-primary: #455A64;
+      --mine-container: #CFD8DC;
+      --mine-on-container: #263238;
+      
+      --md-elevation-1: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+      --md-elevation-2: 0 3px 6px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.12);
+      
+      --md-radius: 14px;
+      --md-radius-sm: 10px;
+      --md-space: 14px;
+      --md-space-sm: 10px;
+      --md-space-xs: 6px;
+      
+      --md-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --md-surface: #1E1E1E;
+        --md-surface-variant: #2C2C2C;
+        --md-on-surface: #E0E0E0;
+        --md-on-surface-variant: #A0A0A0;
+        --md-outline: #404040;
+        --md-outline-variant: #2C2C2C;
+        --md-background: #121212;
+        
+        --garden-container: #1B3D1B;
+        --garden-on-container: #81C784;
+        --water-container: #0D3B4C;
+        --water-on-container: #4FC3F7;
+        --park-container: #4A2C0B;
+        --park-on-container: #FFB74D;
+        --bonsai-container: #00332C;
+        --bonsai-on-container: #4DB6AC;
+        --birds-container: #0A2C4A;
+        --birds-on-container: #64B5F6;
+        --mine-container: #263238;
+        --mine-on-container: #90A4AE;
+      }
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--md-font); }
+    body { 
+      width: 100%; 
+      min-height: 100vh; 
+      background: var(--md-background); 
+      color: var(--md-on-surface); 
+      font-size: 14px; 
+      overflow-y: auto;
+      max-height: 600px; /* Maksymalna wysokość panelu Chrome */
+    }
+    .container { 
+      max-width: 400px; 
+      margin: 0 auto; 
+      padding: var(--md-space); 
+      padding-bottom: 50px; /* Miejsce na samym dole, żeby lista nie była "przyklejona" */
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, var(--garden-primary) 0%, var(--bonsai-primary) 100%);
+      padding: var(--md-space);
+      border-radius: var(--md-radius);
+      margin-bottom: var(--md-space);
+      text-align: center;
+      position: relative;
+      color: white;
+    }
+    .header h1 { font-size: 20px; font-weight: 600; }
+    .header p { font-size: 13px; opacity: 0.9; }
+    .language-toggle {
+      position: absolute; top: 8px; right: 8px;
+      background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 20px; padding: 4px 10px; color: white; font-size: 11px; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; gap: 4px;
+    }
+
+    /* Card base */
+    .card {
+      background: var(--md-surface);
+      border-radius: var(--md-radius);
+      padding: var(--md-space);
+      box-shadow: var(--md-elevation-1);
+      border: 1px solid var(--md-outline);
+      margin-bottom: var(--md-space);
+    }
+
+    /* Status - Compact inline */
+    .status-row {
+      display: flex; gap: var(--md-space-sm); flex-wrap: wrap;
+    }
+    .status-item {
+      flex: 1; min-width: 90px;
+      background: var(--md-surface-variant);
+      padding: var(--md-space-xs) var(--md-space-sm);
+      border-radius: var(--md-radius-sm);
+      font-size: 12px;
+    }
+    .status-label { color: var(--md-on-surface-variant); font-size: 11px; text-transform: uppercase; }
+    .status-value { font-weight: 600; display: flex; align-items: center; gap: 4px; }
+    .status-indicator { width: 6px; height: 6px; border-radius: 50%; background: var(--md-on-surface-variant); }
+    .status-indicator.active { background: var(--garden-primary); box-shadow: 0 0 0 2px var(--garden-container); }
+
+    /* Speed - Horizontal */
+    .speed-row {
+      display: flex; align-items: center; gap: var(--md-space-sm);
+      margin-top: var(--md-space-sm);
+    }
+    .speed-label { font-size: 12px; color: var(--md-on-surface-variant); min-width: 70px; }
+    .speed-btns { display: flex; gap: var(--md-space-xs); flex: 1; }
+    .speed-btn {
+      flex: 1; padding: 6px 10px; border: 1px solid var(--md-outline);
+      background: var(--md-surface); border-radius: var(--md-radius-sm);
+      font-size: 12px; cursor: pointer; color: var(--md-on-surface);
+    }
+    .speed-btn.active { background: var(--garden-container); border-color: var(--garden-primary); color: var(--garden-on-container); }
+
+    /* Gardens - Horizontal pills */
+    .gardens-row {
+      display: flex; gap: var(--md-space-xs);
+    }
+    .garden-pill {
+      flex: 1; padding: 12px; border: none; border-radius: 20px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .garden-pill.main { background: var(--garden-container); color: var(--garden-on-container); }
+    .garden-pill.main:hover { background: var(--garden-primary); color: white; }
+    .garden-pill.water { background: var(--water-container); color: var(--water-on-container); }
+    .garden-pill.water:hover { background: var(--water-primary); color: white; }
+
+    /* Task buttons - 3 columns */
+    .task-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--md-space-xs);
+    }
+    .task-btn {
+      padding: 10px 4px; border: none; border-radius: var(--md-radius-sm);
+      font-size: 11px; font-weight: 600; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+    .task-btn.primary { background: var(--garden-container); color: var(--garden-on-container); }
+    .task-btn.primary:hover { background: var(--garden-primary); color: white; }
+    .task-btn.secondary { background: var(--md-surface-variant); color: var(--md-on-surface); }
+    .task-btn.secondary:hover { background: var(--md-on-surface-variant); color: white; }
+    .task-btn .icon { font-size: 16px; }
+
+    /* Location grid - 2 columns */
+    .location-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: var(--md-space);
+    }
+
+    /* Location card */
+    .location-card {
+      background: var(--md-surface);
+      border-radius: var(--md-radius);
+      padding: var(--md-space-sm);
+      box-shadow: var(--md-elevation-1);
+      border: 1px solid var(--md-outline);
+    }
+    .location-card.park { border-left: 3px solid var(--park-primary); }
+    .location-card.bonsai { border-left: 3px solid var(--bonsai-primary); }
+    .location-card.birds { border-left: 3px solid var(--birds-primary); }
+    .location-card.mine { border-left: 3px solid var(--mine-primary); }
+
+    .location-header {
+      display: flex; align-items: center; gap: 6px;
+      margin-bottom: var(--md-space-sm);
+      font-weight: 600; font-size: 13px;
+    }
+    .location-card.park .location-header { color: var(--park-on-container); }
+    .location-card.bonsai .location-header { color: var(--bonsai-on-container); }
+    .location-card.birds .location-header { color: var(--birds-on-container); }
+    .location-card.mine .location-header { color: var(--mine-on-container); }
+
+    .location-btn {
+      width: 100%; padding: 10px; border: none; border-radius: var(--md-radius-sm);
+      font-size: 12px; font-weight: 600; cursor: pointer; margin-bottom: var(--md-space-xs);
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+    }
+    .location-btn:last-child { margin-bottom: 0; }
+
+    .location-btn.park { background: var(--park-container); color: var(--park-on-container); }
+    .location-btn.park:hover { background: var(--park-primary); color: white; }
+    .location-btn.bonsai { background: var(--bonsai-container); color: var(--bonsai-on-container); }
+    .location-btn.bonsai:hover { background: var(--bonsai-primary); color: white; }
+    .location-btn.birds { background: var(--birds-container); color: var(--birds-on-container); }
+    .location-btn.birds:hover { background: var(--birds-primary); color: white; }
+    .location-btn.mine { background: var(--mine-container); color: var(--mine-on-container); }
+    .location-btn.mine:hover { background: var(--mine-primary); color: white; }
+
+    /* Full width location cards */
+    .location-full {
+      grid-column: 1 / -1;
+    }
+
+    /* Shopping list */
+    #shopping-list { display: none; }
+    #shopping-list.visible { display: block; }
+    .shopping-item {
+      background: var(--md-surface-variant);
+      padding: 12px;
+      margin-bottom: 10px;
+      border-radius: var(--md-radius-sm);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .shopping-item input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--garden-primary);
+      cursor: pointer;
+    }
+    .shopping-item-content { flex: 1; }
+    .shopping-item-name { font-weight: 600; color: var(--md-on-surface); }
+    .shopping-item-quantity { font-size: 12px; color: var(--md-on-surface-variant); }
+    .shopping-controls { display: flex; gap: var(--md-space-xs); margin-bottom: var(--md-space-sm); }
+    .shopping-btn {
+      flex: 1; padding: 10px 8px; border: 1px solid var(--md-outline);
+      background: var(--md-surface-variant); border-radius: var(--md-radius-sm);
+      font-size: 12px; cursor: pointer;
+      color: var(--md-on-surface);
+      font-weight: 600;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .shopping-btn:hover {
+      background: var(--garden-primary);
+      color: white;
+      border-color: var(--garden-primary);
+      transform: translateY(-1px);
+      box-shadow: var(--md-elevation-1);
+    }
+
+    /* Modal */
+    .modal {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center;
+      padding: var(--md-space);
+    }
+    .modal.visible { display: flex; }
+    .modal-content {
+      background: var(--md-surface); border-radius: var(--md-radius);
+      width: 100%; max-width: 500px; max-height: 90vh; overflow: hidden;
+    }
+    .modal-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: var(--md-space); background: var(--garden-container); color: var(--garden-on-container);
+    }
+    .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; }
+
+    .footer { text-align: center; padding: var(--md-space); font-size: 12px; color: var(--md-on-surface-variant); }
+
+    @media (max-width: 360px) {
+      .location-grid { grid-template-columns: 1fr; }
+      .gardens-row { flex-wrap: wrap; }
+    }
+
+    /* Style dla ikon produktów Zielonego Imperium */
+    .shopping-modal-item-image span {
+        display: inline-block;
+        width: 32px;
+        height: 32px;
+        background-image: url('https://s1.zieloneimperium.pl/pics/produkte.png'); /* Adres serwera gry */
+        background-repeat: no-repeat;
+        zoom: 0.8;
+    }
+
+    /* Pozycje ikon (gra używa sprite-sheet) */
+    .e2 { background-position: 0 0; }        /* Sałata */
+    .e3 { background-position: -32px 0; }   /* Marchew */
+    .e5 { background-position: -96px 0; }   /* Pomidory */
+    .e110 { background-position: -256px -96px; } /* Truskawki */
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <img src="icon.png" alt="Icon" style="width: 48px; height: 48px; border-radius: 8px; margin-bottom: 8px; box-shadow: var(--md-elevation-1);">
+      <h1>Asystent Zielone Imperium</h1>
+      <p>Smart Farming Assistant</p>
+      <button class="language-toggle" id="language-toggle">
+        <span id="language-text">PL</span>
+      </button>
+    </div>
+
+    <!-- Status -->
+    <div class="card">
+      <div class="status-row">
+        <div class="status-item">
+          <div class="status-label">Status</div>
+          <div class="status-value">
+            <span class="status-indicator" id="status-indicator"></span>
+            <span id="status-text">--</span>
+          </div>
+        </div>
+        <div class="status-item">
+          <div class="status-label">Tasks</div>
+          <div class="status-value" id="tasks-count">0</div>
+        </div>
+        <div class="status-item">
+          <div class="status-label">Location</div>
+          <div class="status-value" id="current-location">--</div>
+        </div>
+      </div>
+      
+      <!-- Speed Controls inline -->
+      <div class="speed-row">
+        <span class="speed-label">💧 Water</span>
+        <div class="speed-btns">
+          <button class="speed-btn" data-speed="fast" data-action="water">⚡ Fast</button>
+          <button class="speed-btn" data-speed="slow" data-action="water">🐌 Slow</button>
+        </div>
+      </div>
+      <div class="speed-row">
+        <span class="speed-label">🌱 Plant</span>
+        <div class="speed-btns">
+          <button class="speed-btn" data-speed="fast" data-action="plant">⚡ Fast</button>
+          <button class="speed-btn" data-speed="slow" data-action="plant">🐌 Slow</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gardens - At top -->
+    <div class="card">
+      <div class="gardens-row">
+        <button class="garden-pill main" id="go-garden1">🌱 1</button>
+        <button class="garden-pill main" id="go-garden2">🌱 2</button>
+        <button class="garden-pill water" id="go-water">💧 Water</button>
+      </div>
+    </div>
+
+    <!-- Tasks -->
+    <div class="card">
+      <div class="task-grid">
+        <button class="task-btn primary" id="water-crops">
+          <span class="icon">💧</span>
+          <span>Water</span>
+        </button>
+        <button class="task-btn primary" id="plant-crops">
+          <span class="icon">🌱</span>
+          <span>Plant</span>
+        </button>
+        <button class="task-btn primary" id="harvest-crops">
+          <span class="icon">🌾</span>
+          <span>Harvest</span>
+        </button>
+        <button class="task-btn secondary" id="find-seller">
+          <span class="icon">🏪</span>
+          <span>Sell</span>
+        </button>
+        <button class="task-btn secondary" id="show-shopping-list">
+          <span class="icon">🛒</span>
+          <span>List</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Park & Bonsai - Side by side -->
+    <div class="location-grid">
+      <div class="location-card park">
+        <div class="location-header">🌳 Park</div>
+        <button class="location-btn park" id="go-park">🌳 Go</button>
+        <button class="location-btn park" id="renew-park">🔄 Renew</button>
+      </div>
+      
+      <div class="location-card bonsai">
+        <div class="location-header">🎋 Bonsai</div>
+        <button class="location-btn bonsai" id="go-bonsai">🎋 Go</button>
+        <button class="location-btn bonsai" id="bonsai-trim">✂️ Trim</button>
+      </div>
+    </div>
+
+    <!-- Birds -->
+    <div class="location-grid">
+      <div class="location-card birds">
+        <div class="location-header">🐦 Birds</div>
+        <button class="location-btn birds" id="go-birds">🐦 Go</button>
+        <button class="location-btn birds" id="birds-auto">🤖 Auto</button>
+      </div>
+      
+      <div class="location-card mine">
+        <div class="location-header">⛏️ Mine</div>
+        <button class="location-btn mine" id="go-mine">⛏️ Go</button>
+        <button class="location-btn mine" id="auto-mine">🤖 Auto</button>
+      </div>
+    </div>
+
+    <!-- Shopping List -->
+    <div id="shopping-list" class="card shopping-list">
+      <div class="shopping-controls">
+        <button class="shopping-btn" id="refresh-shopping-list">🔄 Skanuj</button>
+        <button class="shopping-btn" id="show-enhanced-shopping-list">📊 Szczegóły</button>
+        <button class="shopping-btn" id="mark-all-shopping-list">✅</button>
+        <button class="shopping-btn" id="unmark-all-shopping-list">❌</button>
+        <button class="shopping-btn" id="clear-shopping-list">🗑️</button>
+      </div>
+      <div id="shopping-list-content"></div>
+    </div>
+
+    <!-- Modal -->
+    <div id="shopping-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>🛒 Shopping List</h3>
+          <button class="modal-close" id="close-shopping-modal">&times;</button>
+        </div>
+        <div class="card">
+          <div class="shopping-controls">
+            <button class="shopping-btn" id="clear-shopping-modal">🗑️ Clear</button>
+            <button class="shopping-btn" id="mark-all-shopping-modal">✅ All</button>
+            <button class="shopping-btn" id="unmark-all-shopping-modal">❌ None</button>
+          </div>
+          <div id="shopping-modal-content"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">❤️ Zielone Imperium</div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

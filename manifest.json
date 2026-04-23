@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "Asystent Gry Farmy",
+  "version": "1.0.0",
+  "description": "Automatyzuje zadania rolnicze w grze przeglądarkowej Zielone Imperium",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "sidePanel",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "*://*.zieloneimperium.pl/*",
+    "*://*.wurzelimperium.de/*"
+  ],
+  "side_panel": {
+    "default_path": "popup.html"
+  },
+  "action": {
+    "default_title": "Otwórz Asystenta Farmy",
+    "default_icon": {
+      "16": "icon.png",
+      "48": "icon.png",
+      "128": "icon.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.zieloneimperium.pl/*",
+        "*://*.wurzelimperium.de/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ]
+}
