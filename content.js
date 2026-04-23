@@ -348,7 +348,7 @@ function stopWatering() {
 async function plantCrops() {
   const isWaterGarden = currentGarden === 'water';
   const selector = isWaterGarden
-    ? '#wgGrid .grid.water:not(.blocked)'
+    ? '#wgGrid .grid:not(.blocked)'
     : '#gardenDiv .gardenfield.feld';
 
   const emptyTiles = Array.from(document.querySelectorAll(selector)).filter(t => {
@@ -358,7 +358,7 @@ async function plantCrops() {
     const bg = img.style.backgroundImage || img.style.background || '';
 
     if (isWaterGarden) {
-      return bg === 'none';
+      return bg === 'none' || bg === '' || bg.includes('0.gif');
     } else {
       return bg.includes('0.gif');
     }
