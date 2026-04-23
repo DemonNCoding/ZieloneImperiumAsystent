@@ -1,11 +1,11 @@
-# Asystent Gry Farmy - Project Documentation
+# Asystent Gry Zielone Imperium - Project Documentation
 
 Select Language: [Polski](#polski) | [English](#english) | [Deutsch](#deutsch)
 
 ---
 
 <!-- VIDEO DEMO PLACEHOLDER -->
-![Extension Demo](zieloneimperium.mp4)
+[![Extension Demo](zieloneimperium.mp4)](https://github.com/user-attachments/assets/8c6fbd12-2ce6-4825-8326-ae611ca75b8d)
 
 ---
 
@@ -26,6 +26,10 @@ Rozszerzenie do przeglądarki Chrome (Manifest V3) automatyzujące zadania w grz
 | **Sprzedaż** | Szybka sprzedaż produktów klientom (Wimpom). |
 | **Lista Zakupów** | Skanowanie zapasów i zamówień w celu wyliczenia braków. |
 | **Lokacje** | Automatyzacja Parku, Bonsai, Ptasiej Poczty i Kopalni. |
+
+### Status
+- **Status: Aktywne/Active**: Rozszerzenie jest połączone z grą.
+- **Lokalizacja**: Aktualnie wykryty ogród lub miejsce w grze.
 
 ### Instalacja
 1. Otwórz `chrome://extensions/`.
@@ -65,6 +69,10 @@ This is a **Chrome Browser Extension** (Manifest V3) that automates farming task
 | **Shopping List** | Scans orders and inventory to generate a missing items list. |
 | **Location Tasks** | Auto-renew Park, Trim Bonsai, Birds automation, and Auto-Mine. |
 
+### Status Indicators
+- **Status: Active**: The extension is connected to the game.
+- **Location**: Currently detected garden or in-game location.
+
 ### Technical Stack
 - **Vanilla JavaScript**: No build tools or external dependencies.
 - **Manifest V3**: Using modern extension standards.
@@ -94,12 +102,13 @@ Eine Chrome-Erweiterung (Manifest V3) zur Automatisierung von Aufgaben im Spiel 
 | **Standorte** | Automatisierung für Park, Bonsai, Vogelpost und Mine. |
 
 ### Status-Anzeigen
-- **Status: Aktywne/Active**: Rozszerzenie jest połączone z grą.
-- **Lokalizacja**: Aktualnie wykryty ogród lub miejsce w grze.
+- **Status: Aktiv/Active**: Die Erweiterung ist mit dem Spiel verbunden.
+- **Standort**: Aktuell erkannter Garten oder Ort im Spiel.
 
 ### Beiträge
 Sie können gerne Aktualisierungen, Fehlerbehebungen oder neue Funktionen per Pull Request hinzufügen! Jede Hilfe zur Verbesserung des Assistenten ist willkommen.
 
 ---
+
 
 
