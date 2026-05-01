@@ -110,5 +110,7 @@ Sie können gerne Aktualisierungen, Fehlerbehebungen oder neue Funktionen per Pu
 
 ---
 
+### Keywords / Tags
+`zielone imperium bot` `wurzelimperium bot` `green empire bot` `zielone imperium assistant` `asystent zielone imperium` `wurzelimperium assistant` `zielone imperium hack` `zielone imperium script` `zielone imperium skrypt` `auto harvest` `auto plant` `automation` `chrome extension` `browser game bot`
 
 
