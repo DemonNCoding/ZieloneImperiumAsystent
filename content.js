@@ -1,5 +1,9 @@
-/* content.js – v4.6 – Birds Product Check */
-console.log('Farm Assistant v4.6 – Birds Product Check');
+/* content.js – v4.7 – Guard against double injection */
+(function() {
+  if (window.__FARM_ASSISTANT_LOADED) return;
+  window.__FARM_ASSISTANT_LOADED = true;
+
+console.log('Farm Assistant v4.7 – Guarded');
 // DEBUG MODE – WŁĄCZ
 const DEBUG_BIRDS = false;
 function debugLog(...args) {
@@ -54,10 +58,11 @@ function detectGarden() {
 
     // === PRIORITY 1: SPECIFIC LOCATIONS (check first!) ===
     const checks = [
-      { id: 'park', value: 'park' },          // CHECK PARK FIRST!
+      { id: 'park_map', value: 'park' },      // CHECK PARK FIRST! (park_map is the actual game ID)
       { id: 'bonsai', value: 'bonsai' },
       { id: 'birds', value: 'birds' },
       { id: 'mine', value: 'mine' },
+      { id: 'trophycontainer', value: 'trophy' },
       { id: 'watergarden_container', value: 'water' }, // MOVED DOWN
       { id: 'citymap', value: 'city' }
     ];
@@ -100,6 +105,10 @@ function detectGarden() {
 let lastPopupClosed = 0;
 let lastHarvestClose = 0;
 let lastLocationCheck = 0;
+let lastNewsClose = 0;
+let lastSpecialOfferClose = 0;
+let lastBaseDialogClose = 0;
+let lastDailyBonusCollect = 0;
 
 const observer = new MutationObserver(() => {
   try {
@@ -110,11 +119,66 @@ const observer = new MutationObserver(() => {
       lastLocationCheck = now;
     }
 
+    // ── 1. Collect Daily Login Bonus ──
+    const dailyBonus = document.getElementById('dailyloginbonus');
+    if (dailyBonus && dailyBonus.offsetParent !== null && Date.now() - lastDailyBonusCollect > 3000) {
+      const collectBtn = document.getElementById('dailyloginbonus_button');
+      if (collectBtn && collectBtn.offsetParent !== null) {
+        const claimInner = collectBtn.querySelector('.inner');
+        if (claimInner) {
+          console.log('[Farm Assistant] Collecting daily login bonus...');
+          collectBtn.click();
+          lastDailyBonusCollect = Date.now();
+          lastPopupClosed = Date.now();
+        }
+      }
+    }
+
+    // ── 2. Close News Layer (newszwergLayer) ──
+    const newsLayer = document.getElementById('newszwergLayer');
+    if (newsLayer && newsLayer.offsetParent !== null && Date.now() - lastNewsClose > 3000) {
+      const newsClose = newsLayer.querySelector('img.closeBtn');
+      if (newsClose && newsClose.offsetParent !== null) {
+        console.log('[Farm Assistant] Closing news layer...');
+        newsClose.click();
+        lastNewsClose = Date.now();
+        lastPopupClosed = Date.now();
+      }
+    }
+
+    // ── 3. Close Special Offer ──
+    const specialOffer = document.getElementById('specialoffer');
+    if (specialOffer && specialOffer.offsetParent !== null && Date.now() - lastSpecialOfferClose > 3000) {
+      const offerClose = specialOffer.querySelector('.close');
+      if (offerClose && offerClose.offsetParent !== null) {
+        console.log('[Farm Assistant] Closing special offer...');
+        offerClose.click();
+        lastSpecialOfferClose = Date.now();
+        lastPopupClosed = Date.now();
+      }
+    }
+
+    // ── 4. Base Dialog auto-close REMOVED ──
+    // Previously auto-closed reward popups, but caused conflicts with
+    // park shop "Kup" dialogs, purchase confirmations, etc.
+    // Specific popups (daily bonus, news, special offer, harvest logs) are handled above.
+
+    // Close any harvest-related popups
     const harvestClose = document.querySelector('#wgErntelog .link.closeBtn, #ernte_log .link.closeBtn');
     if (harvestClose && Date.now() - lastHarvestClose > 1500) {
       harvestClose.click();
       lastHarvestClose = Date.now();
       lastPopupClosed = Date.now();
+    }
+    
+    // Dismiss "nothing to harvest" dialog
+    const nothingDialog = document.querySelector('#baseDialogText');
+    if (nothingDialog && nothingDialog.textContent.includes('Nie ma nic')) {
+      const okBtn = document.querySelector('#baseDialogButton .inner');
+      if (okBtn && okBtn.textContent.trim() === 'OK') {
+        okBtn.click();
+        lastPopupClosed = Date.now();
+      }
     }
   } catch (e) {
     // console.warn('Observer failed:', e);
@@ -140,6 +204,173 @@ setInterval(() => {
   }
 }, LOCATION_REFRESH_INTERVAL);
 
+/* ---------- TICK-BASED AUTOMATION STATE ---------- */
+// Uses local setInterval (faster, not throttled by Chrome)
+let autoState = {
+  water: { active: false, tiles: [], index: 0, running: false, intervalId: null },
+  plant: { active: false, tiles: [], index: 0, running: false, intervalId: null },
+  harvest: { active: false, running: false, intervalId: null },
+};
+
+const AUTO_INTERVAL = 300; // ms between auto ticks
+
+function startAutoInterval(type) {
+  // No-op: auto ticks come from background worker via chrome.alarms
+  // State is activated so process[type]Tick knows to run
+  autoState[type].active = true;
+}
+
+function stopAutoInterval(type) {
+  const state = autoState[type];
+  state.active = false;
+  state.tiles = [];
+  state.index = 0;
+  if (state.intervalId) {
+    clearInterval(state.intervalId);
+    state.intervalId = null;
+  }
+}
+
+async function processWaterTick() {
+  const state = autoState.water;
+  if (state.running || !state.active) return;
+  state.running = true;
+
+  try {
+    // If no tiles cached or index out of range, scan for dry tiles
+    if (state.tiles.length === 0 || state.index >= state.tiles.length) {
+      state.tiles = [];
+      state.index = 0;
+      
+      const toolSelected = await selectWateringTool();
+      if (!toolSelected) { state.running = false; return; }
+
+      const isWaterGarden = currentGarden === 'water';
+      const selector = isWaterGarden
+        ? '.grid.water:not(.blocked), .grid:not(.blocked):not(.water)'
+        : '#gardenDiv .gardenfield.feld';
+      const tiles = Array.from(document.querySelectorAll(selector));
+
+      state.tiles = tiles.filter(t => {
+        const img = t.querySelector('.plantImage');
+        if (!img) return false;
+        const style = isWaterGarden ? img.style.backgroundImage : img.style.background;
+        if (!style) return false;
+        const url = style.replace(/.*url\(["']?/, '').replace(/["')].*/, '');
+        const keyMatch = url.match(/produkte\/([^.?_]+(_\d+)?)/);
+        const key = keyMatch ? keyMatch[1] : '';
+        if (!key || key === '0') return false;
+        const isWatered = isWaterGarden
+          ? window.getComputedStyle(t.querySelector('.water') || {}).display !== 'none'
+          : t.querySelector('.wasser')?.src?.includes('gegossen.gif');
+        return !isWatered;
+      });
+
+      if (state.tiles.length === 0) { state.running = false; return; }
+    }
+
+    // Process ONE tile
+    const tile = state.tiles[state.index];
+    if (tile) {
+      const reselected = await selectWateringTool();
+      if (reselected) {
+        tile.click();
+      }
+    }
+    state.index++;
+
+    // If we processed the last tile, reset
+    if (state.index >= state.tiles.length) {
+      state.tiles = [];
+      state.index = 0;
+    }
+  } catch (e) {
+    state.tiles = [];
+    state.index = 0;
+  }
+
+  state.running = false;
+}
+
+async function processPlantTick() {
+  const state = autoState.plant;
+  if (state.running || !state.active) return;
+  state.running = true;
+
+  try {
+    if (state.tiles.length === 0 || state.index >= state.tiles.length) {
+      state.tiles = [];
+      state.index = 0;
+
+      const isWaterGarden = currentGarden === 'water';
+      const selector = isWaterGarden
+        ? '#wgGrid .grid:not(.blocked)'
+        : '#gardenDiv .gardenfield.feld';
+
+      let allTiles = Array.from(document.querySelectorAll(selector));
+      state.tiles = allTiles.filter(t => {
+        const img = t.querySelector('.plantImage');
+        if (!img) return false;
+        const bg = img.style.backgroundImage || img.style.background || '';
+        if (isWaterGarden) {
+          return bg === 'none' || bg === '' || bg.includes('0.gif');
+        } else {
+          return bg.includes('0.gif');
+        }
+      });
+
+      // If in water garden, check if the selected plant has restricted placement
+      if (isWaterGarden) {
+        state.tiles = filterRestrictedWaterTiles(state.tiles);
+      }
+
+      if (state.tiles.length === 0) { state.running = false; return; }
+    }
+
+    const tile = state.tiles[state.index];
+    if (tile) tile.click();
+    state.index++;
+
+    if (state.index >= state.tiles.length) {
+      state.tiles = [];
+      state.index = 0;
+    }
+  } catch (e) {
+    state.tiles = [];
+    state.index = 0;
+  }
+
+  state.running = false;
+}
+
+async function processHarvestTick() {
+  const state = autoState.harvest;
+  if (state.running || !state.active) return;
+  state.running = true;
+
+  try {
+    const isWaterGarden = currentGarden === 'water';
+    if (isWaterGarden) {
+      const btn = document.getElementById('wgHarvester');
+      if (!btn) { state.running = false; return; }
+      btn.click();
+      await humanDelay(200, 300);
+      // Close harvest log if it appeared
+      const logClose = document.querySelector('#wgErntelog .link.closeBtn');
+      if (logClose) logClose.click();
+    } else {
+      const btn = document.querySelector('.link.harvest');
+      if (!btn) { state.running = false; return; }
+      btn.click();
+      await humanDelay(1400, 2000);
+      const logClose = document.querySelector('#ernte_log .link.closeBtn');
+      if (logClose) logClose.click();
+    }
+  } catch (e) {}
+
+  state.running = false;
+}
+
 /* ---------- MESSAGE HANDLER ---------- */
 chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   if (req.action === 'ping') {
@@ -152,18 +383,60 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
 
   // Prevents top-frame from overriding the response with empty items
   if (req.action === 'getShoppingList' && currentGarden === 'unknown') {
-    return false; // Don't handle it here, let the game frame handle it
+    return false;
   }
 
   console.log('Action:', req.action);
+  
+  // Handle auto start/stop from background proxy
+  if (req.action === 'startAuto' && ['water', 'plant', 'harvest'].includes(req.type)) {
+    startAutoInterval(req.type);
+    sendResponse({ success: true });
+    return true;
+  }
+  if (req.action === 'stopAuto' && ['water', 'plant', 'harvest'].includes(req.type)) {
+    stopAutoInterval(req.type);
+    sendResponse({ success: true });
+    return true;
+  }
+  
+  // Handle tick from background worker alarm (NOT throttled)
+  if (req.action === 'autoTick' && ['water', 'plant', 'harvest'].includes(req.type)) {
+    if (autoState[req.type].active) {
+      if (req.type === 'water') processWaterTick();
+      else if (req.type === 'plant') processPlantTick();
+      else if (req.type === 'harvest') processHarvestTick();
+    }
+    sendResponse({ success: true });
+    return true;
+  }
+
   (async () => {
     try {
       switch (req.action) {
         case 'findSeller': await findSeller(); break;
-        case 'start_watering': case 'waterCrops': await waterCrops(); break;
-        case 'stop_watering': stopWatering(); break;
-        case 'plantCrops': await plantCrops(); break;
-        case 'harvestCrops': await harvestCrops(); break;
+        case 'start_watering': case 'waterCrops': {
+          // Full loop — process ALL dry tiles immediately
+          await waterCrops();
+          break;
+        }
+        case 'stop_watering': {
+          stopWatering();
+          stopAutoInterval('water');
+          // Force stop by clearing the wateringActive flag
+          wateringActive = false;
+          break;
+        }
+        case 'plantCrops': {
+          // Full loop — process ALL empty tiles immediately
+          await plantCrops();
+          break;
+        }
+        case 'harvestCrops': {
+          // Full loop — harvest immediately
+          await harvestCrops();
+          break;
+        }
         case 'toggleWater': toggleAutomation('water', req.enabled, waterCrops); break;
         case 'togglePlant': toggleAutomation('plant', req.enabled, plantCrops); break;
         case 'toggleHarvest': toggleAutomation('harvest', req.enabled, harvestCrops); break;
@@ -174,11 +447,96 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
         case 'goBONSAI': await goToLocation('bonsai'); break;
         case 'goBIRDS': await goToLocation('birds'); break;
         case 'goMINE': await goToLocation('mine'); break;
+        case 'goTROPHY': await goToTrophy(); break;
+        case 'autoTrophies': await autoTrophies(); break;
         case 'autoMine': await autoMine(); break;
         case 'renewParkDecorations': await renewParkDecorations(); break;
         case 'bonsaiTrim': await bonsaiTrim(); break;
         case 'birdsCollectRewards': await birdsCollectRewards(); break;
         case 'birdsAuto': await birdsAuto(); break;
+        case 'showParkCalcOverlay': {
+          showParkCalcOverlay();
+          sendResponse({ success: true });
+          return;
+        }
+        case 'getParkDecorationInfo': {
+          try {
+            const infoDiv = document.getElementById('park_info_expand');
+            if (!infoDiv || infoDiv.offsetParent === null) {
+              sendResponse({ error: 'not_in_park', message: 'Not in park location' });
+              return;
+            }
+
+            // Extract decoration points
+            const pointsLine = infoDiv.querySelector('.line');
+            let points = 0;
+            if (pointsLine) {
+              const match = pointsLine.textContent.match(/(\d[\d.]*)/);
+              if (match) points = parseInt(match[1].replace(/\./g, ''));
+            }
+
+            // Extract visitors from decorations
+            const visitorDecoEl = document.getElementById('park_info_expand_visitor_deco');
+            let currentVisitors = 0;
+            if (visitorDecoEl) {
+              const span = visitorDecoEl.querySelector('span');
+              if (span) currentVisitors = parseInt(span.textContent.trim()) || 0;
+            }
+
+            // Extract max visitors from paths
+            const visitorPathEl = document.getElementById('park_info_expand_visitor_path');
+            let maxPathVisitors = 0;
+            if (visitorPathEl) {
+              const span = visitorPathEl.querySelector('span');
+              if (span) maxPathVisitors = parseInt(span.textContent.trim()) || 0;
+            }
+
+            // Calculate thresholds using the formula: threshold(n) = 7 + 25 * n * (n - 1)
+            function getThreshold(visitors) {
+              return 7 + 25 * visitors * (visitors - 1);
+            }
+
+            // Build reference table up to 20 visitors
+            const referenceTable = [];
+            for (let v = 1; v <= 20; v++) {
+              referenceTable.push({ visitors: v, pointsNeeded: getThreshold(v) });
+            }
+
+            // Find next milestone
+            let nextVisitors = currentVisitors + 1;
+            while (nextVisitors <= 20 && points >= getThreshold(nextVisitors)) {
+              nextVisitors++;
+            }
+            if (nextVisitors > 20) nextVisitors = 20;
+
+            const nextThreshold = getThreshold(nextVisitors);
+            const pointsNeeded = nextThreshold - points;
+            const progress = currentVisitors > 0 && nextVisitors > currentVisitors
+              ? ((points - getThreshold(currentVisitors)) / (nextThreshold - getThreshold(currentVisitors))) * 100
+              : 100;
+
+            // Calculate effective visitors (limited by paths)
+            const effectiveVisitors = Math.min(currentVisitors, maxPathVisitors);
+
+            sendResponse({
+              success: true,
+              points,
+              currentVisitors,
+              maxPathVisitors,
+              effectiveVisitors,
+              nextVisitors,
+              nextThreshold,
+              pointsNeeded,
+              progress: Math.min(100, Math.max(0, progress)),
+              referenceTable
+            });
+            return;
+          } catch (e) {
+            console.error('Error getting park decoration info:', e);
+            sendResponse({ error: 'parse_error', message: e.message });
+            return;
+          }
+        }
         case 'getShoppingList': {
           try {
             // Switch to normal garden inventory for water garden
@@ -310,7 +668,8 @@ async function waterCrops() {
 
   console.log(`Watering ${dryTiles.length} dry tiles`);
 
-  for (const tile of dryTiles) {
+  for (let idx = 0; idx < dryTiles.length; idx++) {
+    const tile = dryTiles[idx];
     if (stopRequested) {
       console.log('Watering stopped by user');
       break;
@@ -328,7 +687,15 @@ async function waterCrops() {
 
     // Get speed settings dynamically during watering
     const speedSettings = await getSpeedSettings();
-    const [minDelay, maxDelay] = getDelayForSpeed(speedSettings.water, 50, 100);
+    let [minDelay, maxDelay] = getDelayForSpeed(speedSettings.water, 50, 100);
+
+    // Slow down for last 3 tiles to ensure they register
+    const tilesLeft = dryTiles.length - idx;
+    if (tilesLeft <= 3) {
+      minDelay *= 3;
+      maxDelay *= 3;
+    }
+
     await humanDelay(minDelay, maxDelay);
   }
 
@@ -344,6 +711,33 @@ function stopWatering() {
   console.log('Stop requested – stopping after current tile');
 }
 
+/* ---------- RESTRICTED WATER GARDEN PLANTS ---------- */
+// Plants that can only be placed on specific grid tiles (1×2 tall, etc.)
+const WATER_GARDEN_RESTRICTED_PLANTS = {
+  'Pałka szerokolistna': ['wgGrid69', 'wgGrid70', 'wgGrid103', 'wgGrid104', 'wgGrid180', 'wgGrid181', 'wgGrid182']
+};
+
+// Get the currently selected item name from the inventory detail panel
+function getSelectedItemName() {
+  const nameEl = document.getElementById('lager_name');
+  if (!nameEl) return '';
+  return nameEl.textContent.trim();
+}
+
+// Filter empty tiles to only allowed grids for restricted plants
+function filterRestrictedWaterTiles(tiles) {
+  const selectedItem = getSelectedItemName();
+  const allowed = WATER_GARDEN_RESTRICTED_PLANTS[selectedItem];
+  
+  if (!allowed) {
+    // Plant is not restricted — allow all empty tiles
+    return tiles;
+  }
+  
+  console.log(`[Farm Assistant] "${selectedItem}" is restricted to ${allowed.length} specific tiles`);
+  return tiles.filter(t => allowed.includes(t.id));
+}
+
 /* ---------- PLANTING – WATER GARDEN: background-image: none ---------- */
 async function plantCrops() {
   const isWaterGarden = currentGarden === 'water';
@@ -351,7 +745,7 @@ async function plantCrops() {
     ? '#wgGrid .grid:not(.blocked)'
     : '#gardenDiv .gardenfield.feld';
 
-  const emptyTiles = Array.from(document.querySelectorAll(selector)).filter(t => {
+  let emptyTiles = Array.from(document.querySelectorAll(selector)).filter(t => {
     const img = t.querySelector('.plantImage');
     if (!img) return false;
 
@@ -363,6 +757,11 @@ async function plantCrops() {
       return bg.includes('0.gif');
     }
   });
+
+  // If in water garden, check if the selected plant has restricted placement
+  if (isWaterGarden) {
+    emptyTiles = filterRestrictedWaterTiles(emptyTiles);
+  }
 
   console.log(`Planting ${emptyTiles.length} empty tiles (${currentGarden})`);
 
@@ -1362,6 +1761,131 @@ async function buyBirdsForEmptyHouses() {
   return bought;
 }
 
+/* ---------- GO TO TROPHY ROOM: NAVIGATE TO MAIN GARDEN FIRST IF NEEDED ---------- */
+async function goToTrophy() {
+  if (currentGarden !== 'main') {
+    showNotification('Przechodzę do ogrodu głównego...');
+    console.log(`Current location is "${currentGarden}", navigating to main garden first...`);
+
+    // Open the map (same pattern as goToGarden / goToLocation)
+    const map = document.getElementById('wimpareaCar') || document.getElementById('wgMap');
+    if (!map) {
+      showNotification('Nie znaleziono mapy!');
+      return;
+    }
+    map.click();
+    await humanDelay(800, 1200);
+
+    // Click Garden 1 on the map
+    const gardenBtn = document.getElementById('citymap_location_garden1');
+    if (!gardenBtn) {
+      showNotification('Nie znaleziono przycisku ogrodu głównego!');
+      return;
+    }
+    gardenBtn.click();
+
+    // Wait for location to change to 'main'
+    await retryDetectGarden('main');
+
+    if (currentGarden !== 'main') {
+      showNotification('Nie udało się przejść do ogrodu głównego!');
+      return;
+    }
+
+    showNotification('Jesteś w ogrodzie głównym, otwieram pokój trofeów...');
+    await humanDelay(400, 600);
+  }
+
+  console.log('Opening house and trophy room...');
+
+  // Click the house icon in the garden
+  const house = document.getElementById('wimpareaGardenhouse');
+  if (!house) {
+    showNotification('Nie znaleziono ikony domu!');
+    return;
+  }
+  house.click();
+  await humanDelay(800, 1200);
+
+  // Click the trophy button inside the house
+  const achievements = document.getElementById('houseTrophies');
+  if (!achievements) {
+    showNotification('Nie znaleziono przycisku trofeów!');
+    return;
+  }
+  achievements.click();
+  await humanDelay(1000, 1400);
+
+  // The trophy container should now be visible, detected by the MutationObserver
+  console.log('Trophy room should now be open');
+  showNotification('Pokój trofeów otwarty!');
+}
+
+/* ---------- AUTO TROPHIES: CLICK ALL TROPHIES IN TROPHY ROOM ---------- */
+async function autoTrophies() {
+  if (currentGarden !== 'trophy') return showNotification('Musisz być w Pokoju Trofeów!');
+
+  activeTasks++; updateTaskCount();
+  console.log('Starting auto-trophies...');
+
+  let totalClicked = 0;
+  const maxPages = 11;
+
+  try {
+    for (let page = 1; page <= maxPages; page++) {
+      // Select the page using the dropdown
+      const select = document.getElementById('trophyHeadlineSelect');
+      if (!select) {
+        console.log('Trophy page select not found, stopping');
+        break;
+      }
+
+      // Check if this page option exists
+      const option = select.querySelector(`option[value="${page}"]`);
+      if (!option) {
+        console.log(`Page ${page} not available, stopping`);
+        break;
+      }
+
+      // Change page via dropdown
+      select.value = page;
+      select.dispatchEvent(new Event('change'));
+      await humanDelay(800, 1200);
+
+      // Find all trophy images on this page
+      const trophies = document.querySelectorAll('#trophyImages img.gift');
+      console.log(`Page ${page}: Found ${trophies.length} trophies`);
+
+      for (const trophy of trophies) {
+        // Extract the trophy click ID from the onclick attribute
+        // onclick="trophys.click(128)"
+        const onClick = trophy.getAttribute('onclick');
+        if (!onClick) continue;
+
+        const match = onClick.match(/trophys\.click\((\d+)\)/);
+        if (!match) continue;
+
+        const trophyId = match[1];
+        console.log(`Clicking trophy ${trophyId} on page ${page}`);
+
+        // Click the trophy directly
+        trophy.click();
+        await humanDelay(200, 400);
+        totalClicked++;
+      }
+    }
+
+    console.log(`Auto-trophies completed: ${totalClicked} trophies clicked`);
+    showNotification(`Trofea: kliknięto ${totalClicked} trofeów!`);
+
+  } catch (error) {
+    console.error('Auto-trophies error:', error);
+    showNotification('Auto-trophies failed - check console');
+  } finally {
+    activeTasks--; updateTaskCount();
+  }
+}
+
 /* ---------- AUTO MINE: AUTOMATICALLY MINE READY MATERIALS ---------- */
 async function autoMine() {
   if (currentGarden !== 'mine') return showNotification('Musisz być w Kopalni!');
@@ -1722,3 +2246,286 @@ async function startMiningOperation() {
     return false;
   }
 }
+
+/* ---------- PARK DECORATION CALCULATOR OVERLAY (multilingual) ---------- */
+function showParkCalcOverlay() {
+  // Remove existing overlay if any
+  const existing = document.getElementById('farm-assistant-park-overlay');
+  if (existing) existing.remove();
+
+  // Get language preference from storage (async callback)
+  chrome.storage.local.get(['language'], (result) => {
+    const lang = result.language || 'PL';
+    buildParkOverlay(lang);
+  });
+}
+
+function getParkTranslations(lang) {
+  const t = {
+    EN: {
+      notInPark: 'Not in park location!',
+      title: '🌳 Park Decoration Info',
+      points: 'Decoration points:',
+      visitors: '👥 Visitors:',
+      to: 'To',
+      guests: 'guests:',
+      pts: 'pts',
+      pathsMax: 'Paths: max.',
+      effective: 'Effective:',
+      parkSummary: '📊 Park Summary',
+      paths: 'Paths:',
+      decorations: 'Decorations:',
+      empty: 'Empty:',
+      trash: 'Trash:',
+      bottleneckPaths: 'Bottleneck: paths!',
+      bottleneckPathsDesc: 'To handle',
+      bottleneckPathsNeed: 'you need',
+      bottleneckPathsMore: 'more paths',
+      bottleneckPathsInfo: 'You have',
+      bottleneckNeed: 'need',
+      bottleneckDeco: 'Bottleneck: decorations!',
+      bottleneckDecoDesc: 'To handle',
+      bottleneckDecoNeed: 'you need',
+      bottleneckDecoMore: 'more decoration pts',
+      balanced: 'Decorations and paths are balanced',
+      showTable: '📋 Show thresholds table',
+      visitorsHeader: 'Visitors',
+      pointsHeader: 'Points'
+    },
+    PL: {
+      notInPark: 'Musisz być w Parku Miejskim!',
+      title: '🌳 Park Decoration Info',
+      points: 'Punkty dekoracji:',
+      visitors: '👥 Odwiedzający:',
+      to: 'Do',
+      guests: 'gości:',
+      pts: 'pkt',
+      pathsMax: 'Drogi: maks.',
+      effective: 'Efektywnie:',
+      parkSummary: '📊 Podsumowanie parku',
+      paths: 'Ścieżki:',
+      decorations: 'Dekoracje:',
+      empty: 'Puste:',
+      trash: 'Śmieci:',
+      bottleneckPaths: 'Wąskie gardło: ścieżki!',
+      bottleneckPathsDesc: 'Aby obsłużyć',
+      bottleneckPathsNeed: 'potrzebujesz jeszcze',
+      bottleneckPathsMore: 'ścieżek',
+      bottleneckPathsInfo: 'Masz',
+      bottleneckNeed: 'potrzeba',
+      bottleneckDeco: 'Wąskie gardło: dekoracje!',
+      bottleneckDecoDesc: 'Aby obsłużyć',
+      bottleneckDecoNeed: 'potrzebujesz jeszcze',
+      bottleneckDecoMore: 'pkt dekoracji',
+      balanced: 'Dekoracje i drogi zbalansowane',
+      showTable: '📋 Pokaż tabelę progów',
+      visitorsHeader: 'Odwiedzający',
+      pointsHeader: 'Punkty'
+    },
+    DE: {
+      notInPark: 'Nicht im Stadtpark!',
+      title: '🌳 Park Decoration Info',
+      points: 'Dekorationspunkte:',
+      visitors: '👥 Besucher:',
+      to: 'Bis',
+      guests: 'Besucher:',
+      pts: 'Pkt.',
+      pathsMax: 'Wege: max.',
+      effective: 'Effektiv:',
+      parkSummary: '📊 Park Zusammenfassung',
+      paths: 'Wege:',
+      decorations: 'Dekorationen:',
+      empty: 'Leer:',
+      trash: 'Müll:',
+      bottleneckPaths: 'Engpass: Wege!',
+      bottleneckPathsDesc: 'Um',
+      bottleneckPathsNeed: 'benötigst du',
+      bottleneckPathsMore: 'mehr Wege',
+      bottleneckPathsInfo: 'Du hast',
+      bottleneckNeed: 'benötigt',
+      bottleneckDeco: 'Engpass: Dekorationen!',
+      bottleneckDecoDesc: 'Um',
+      bottleneckDecoNeed: 'benötigst du',
+      bottleneckDecoMore: 'mehr Dekorationspkt.',
+      balanced: 'Dekorationen und Wege sind ausbalanciert',
+      showTable: '📋 Schwellenwerttabelle anzeigen',
+      visitorsHeader: 'Besucher',
+      pointsHeader: 'Punkte'
+    }
+  };
+  return t[lang] || t.PL;
+}
+
+function buildParkOverlay(lang) {
+  const t = getParkTranslations(lang);
+
+  // Parse park info from DOM
+  const infoDiv = document.getElementById('park_info_expand');
+  if (!infoDiv || infoDiv.offsetParent === null) {
+    showNotification(t.notInPark);
+    return;
+  }
+
+  const pointsLine = infoDiv.querySelector('.line');
+  let points = 0;
+  if (pointsLine) {
+    const match = pointsLine.textContent.match(/(\d[\d.]*)/);
+    if (match) points = parseInt(match[1].replace(/\./g, ''));
+  }
+
+  const visitorDecoEl = document.getElementById('park_info_expand_visitor_deco');
+  let currentVisitors = 0;
+  if (visitorDecoEl) {
+    const span = visitorDecoEl.querySelector('span');
+    if (span) currentVisitors = parseInt(span.textContent.trim()) || 0;
+  }
+
+  const visitorPathEl = document.getElementById('park_info_expand_visitor_path');
+  let maxPathVisitors = 0;
+  if (visitorPathEl) {
+    const span = visitorPathEl.querySelector('span');
+    if (span) maxPathVisitors = parseInt(span.textContent.trim()) || 0;
+  }
+
+  function getThreshold(v) { return 7 + 25 * v * (v - 1); }
+
+  let nextVisitors = currentVisitors + 1;
+  while (nextVisitors <= 20 && points >= getThreshold(nextVisitors)) nextVisitors++;
+  if (nextVisitors > 20) nextVisitors = 20;
+
+  const nextThreshold = getThreshold(nextVisitors);
+  const pointsNeeded = nextThreshold - points;
+  const progress = currentVisitors > 0 && nextVisitors > currentVisitors
+    ? ((points - getThreshold(currentVisitors)) / (nextThreshold - getThreshold(currentVisitors))) * 100
+    : (points > 0 ? 100 : 0);
+  const effectiveVisitors = Math.min(currentVisitors, maxPathVisitors);
+  const pct = Math.min(100, Math.max(0, Math.round(progress)));
+
+  // === SCAN PARK TILES ===
+  const tiles = document.querySelectorAll('#park_map .tile');
+  let pathCount = 0, decoCount = 0, emptyCount = 0, trashCount = 0;
+  
+  tiles.forEach(tile => {
+    const ground = tile.querySelector('.ground');
+    if (!ground) return;
+    const cls = ground.className;
+    const hasItem = !!tile.querySelector('.item');
+    
+    if (cls.includes('path_')) {
+      pathCount++;
+    } else if (hasItem) {
+      decoCount++;
+    } else if (cls.includes('trash')) {
+      trashCount++;
+    } else {
+      emptyCount++;
+    }
+  });
+
+  // Calculate decoration visitors from points
+  let decoVisitors = 0;
+  for (let v = 20; v >= 1; v--) {
+    if (points >= getThreshold(v)) { decoVisitors = v; break; }
+  }
+
+  // Bottleneck analysis
+  let bottleneck = '';
+  if (maxPathVisitors < decoVisitors) {
+    const needed = (decoVisitors - maxPathVisitors) * 5;
+    bottleneck = `<div style="background:rgba(239,108,0,0.15);border:1px solid rgba(239,108,0,0.3);border-radius:8px;padding:10px;margin-top:8px;font-size:12px;">
+      🛤️ <b>${t.bottleneckPaths}</b><br>
+      ${t.bottleneckPathsDesc} <b>${decoVisitors}</b> ${t.guests.replace(':','').trim()}, ${t.bottleneckPathsNeed} <b style="color:#FFB74D;">${needed}</b> ${t.bottleneckPathsMore}<br>
+      <span style="color:#aaa;">${t.bottleneckPathsInfo} ${pathCount} ${t.paths.replace(':','').trim()} (max ${maxPathVisitors} ${t.guests.replace(':','').trim()}), ${t.bottleneckNeed} ${decoVisitors * 5}</span>
+    </div>`;
+  } else if (decoVisitors < maxPathVisitors) {
+    const needed = getThreshold(maxPathVisitors) - points;
+    bottleneck = `<div style="background:rgba(129,199,132,0.15);border:1px solid rgba(129,199,132,0.3);border-radius:8px;padding:10px;margin-top:8px;font-size:12px;">
+      🌸 <b>${t.bottleneckDeco}</b><br>
+      ${t.bottleneckDecoDesc} <b>${maxPathVisitors}</b> ${t.guests.replace(':','').trim()}, ${t.bottleneckDecoNeed} <b style="color:#81C784;">${needed}</b> ${t.bottleneckDecoMore}
+    </div>`;
+  } else {
+    bottleneck = `<div style="background:rgba(129,199,132,0.1);border:1px solid rgba(129,199,132,0.2);border-radius:8px;padding:10px;margin-top:8px;font-size:12px;">
+      ✅ ${t.balanced}
+    </div>`;
+  }
+
+  // Build reference table HTML
+  let tableRows = '';
+  for (let v = 1; v <= 20; v++) {
+    const needed = getThreshold(v);
+    const isCurrent = v === currentVisitors;
+    const isNext = v === nextVisitors;
+    const rowStyle = isCurrent ? 'background:rgba(239,108,0,0.15);font-weight:700;color:#e0e0e0;' :
+                     isNext ? 'font-weight:600;color:#FFB74D;' : '';
+    tableRows += `<tr style="${rowStyle}border-bottom:1px solid rgba(255,255,255,0.1);color:#e0e0e0;">
+      <td style="padding:3px 6px;color:inherit;">${v}</td>
+      <td style="text-align:right;padding:3px 6px;color:inherit;">${needed.toLocaleString()}</td>
+    </tr>`;
+  }
+
+  // Create overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'farm-assistant-park-overlay';
+  overlay.innerHTML = `
+    <div style="background:#1a1a2e;color:#e0e0e0;border-radius:12px;padding:20px;width:420px;max-height:500px;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.5);font-family:Arial,sans-serif;font-size:13px;line-height:1.5;position:relative;">
+      <div style="position:sticky;top:0;z-index:1;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid #EF6C00;">
+        <span style="font-size:16px;font-weight:700;">${t.title}</span>
+        <span id="farm-assistant-park-close" style="cursor:pointer;font-size:22px;color:#aaa;line-height:1;">&times;</span>
+      </div>
+      
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+        <span>${t.points} <b style="color:#FFB74D;">${points.toLocaleString()}</b></span>
+        <span>${t.visitors} <b style="color:#81C784;">${currentVisitors}</b></span>
+      </div>
+      
+      <div style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+          <span>${t.to} <b>${nextVisitors}</b> ${t.guests} <b>${Math.max(0,pointsNeeded).toLocaleString()}</b> ${t.pts}</span>
+          <span>${pct}%</span>
+        </div>
+        <div style="height:10px;background:#333;border-radius:5px;overflow:hidden;">
+          <div style="height:100%;background:linear-gradient(90deg,#EF6C00,#FFB74D);border-radius:5px;transition:width 0.3s;width:${pct}%;"></div>
+        </div>
+      </div>
+      
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:#aaa;margin-bottom:12px;">
+        <span>${t.pathsMax} <b style="color:#e0e0e0;">${maxPathVisitors}</b> ${t.guests}</span>
+        <span>${t.effective} <b style="color:#e0e0e0;">${effectiveVisitors}</b></span>
+      </div>
+
+      <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:10px;margin-bottom:10px;">
+        <div style="font-weight:600;margin-bottom:6px;font-size:12px;color:#aaa;">${t.parkSummary}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;">
+          <span>🛤️ ${t.paths} <b style="color:#e0e0e0;">${pathCount}</b></span>
+          <span>🌸 ${t.decorations} <b style="color:#e0e0e0;">${decoCount}</b></span>
+          <span>🟩 ${t.empty} <b style="color:#e0e0e0;">${emptyCount}</b></span>
+          <span>🗑️ ${t.trash} <b style="color:#e0e0e0;">${trashCount}</b></span>
+        </div>
+      </div>
+
+      ${bottleneck}
+      
+      <details style="margin-top:10px;">
+        <summary style="cursor:pointer;color:#EF6C00;font-size:12px;font-weight:600;">${t.showTable}</summary>
+        <div style="margin-top:8px;max-height:200px;overflow-y:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <tr style="border-bottom:2px solid #444;">
+              <th style="text-align:left;padding:3px 6px;color:#aaa;">${t.visitorsHeader}</th>
+              <th style="text-align:right;padding:3px 6px;color:#aaa;">${t.pointsHeader}</th>
+            </tr>
+            ${tableRows}
+          </table>
+        </div>
+      </details>
+    </div>
+  `;
+  overlay.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:999999;';
+
+  document.body.appendChild(overlay);
+
+  // Close handler
+  document.getElementById('farm-assistant-park-close').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
+})();
