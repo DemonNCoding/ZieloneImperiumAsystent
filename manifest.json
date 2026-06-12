@@ -5,6 +5,7 @@
   "description": "Automatyzuje zadania rolnicze w grze przeglądarkowej Zielone Imperium",
   "permissions": [
     "activeTab",
+    "alarms",
     "storage",
     "sidePanel",
     "scripting",
