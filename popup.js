@@ -1,4 +1,4 @@
-// popup.js – FINAL
+// popup.js – FINAL v2 with background proxy messaging + persistent automation
 let watering = false;
 
 // Language toggle functionality
@@ -47,7 +47,30 @@ const translations = {
     auto: 'Auto',
     mine: 'Mine',
     mineTitle: 'Mine',
-    footer: 'Crafted with ❤️ for dedicated farmers'
+    trophy: 'Trophy Room',
+    footer: 'Crafted with ❤️ for dedicated farmers',
+    parkCalcInfo: '📊 Info',
+    parkCalcLoading: '⟳ Loading...',
+    parkCalcPoints: 'Decoration points:',
+    parkCalcVisitors: '👥 Visitors:',
+    parkCalcNext: 'To',
+    parkCalcGuests: 'guests:',
+    parkCalcNeeded: 'pts needed',
+    parkCalcPathLabel: 'Paths: max.',
+    parkCalcEffective: 'Effective:',
+    parkCalcShowTable: '📋 Show table',
+    fruitShop: 'Fruit Shop',
+    vegetableShop: 'Vegetable Shop',
+    herbShop: 'Herb Shop',
+    flowerShop: 'Flower Shop',
+    otherShop: 'Other Shop',
+    modalTitle: 'Shopping List',
+    modalClear: 'Clear',
+    modalMarkAll: 'All',
+    modalUnmarkAll: 'None',
+    auto_water_on: 'Auto Water ON',
+    auto_plant_on: 'Auto Plant ON',
+    auto_harvest_on: 'Auto Harvest ON',
   },
   PL: {
     title: 'Zielone Imperium',
@@ -89,6 +112,7 @@ const translations = {
     auto: 'Auto',
     mine: 'Kopalnia',
     mineTitle: 'Kopalnia',
+    trophy: 'Pokój Trofeów',
     footer: 'Stworzone z ❤️ dla wytrwałych rolników',
     shoppingListCleared: 'Lista zakupów została wyczyszczona.',
     noActiveTab: 'Brak aktywnej karty.',
@@ -110,7 +134,29 @@ const translations = {
     active: 'Aktywne',
     clearShoppingList: '🗑️ Wyczyść',
     markAll: '✅ Zaznacz wszystko',
-    unmarkAll: '❌ Odznacz wszystko'
+    unmarkAll: '❌ Odznacz wszystko',
+    parkCalcInfo: '📊 Info',
+    parkCalcLoading: '⟳ Ładowanie...',
+    parkCalcPoints: 'Punkty dekoracji:',
+    parkCalcVisitors: '👥 Odwiedzający:',
+    parkCalcNext: 'Do',
+    parkCalcGuests: 'gości:',
+    parkCalcNeeded: 'pkt potrzeba',
+    parkCalcPathLabel: 'Drogi: maks.',
+    parkCalcEffective: 'Efektywnie:',
+    parkCalcShowTable: '📋 Pokaż tabelę',
+    fruitShop: 'Sklep Owocowy',
+    vegetableShop: 'Sklep Warzywny',
+    herbShop: 'Sklep Ziołowy',
+    flowerShop: 'Sklep Kwiatowy',
+    otherShop: 'Inne',
+    modalTitle: 'Lista Zakupów',
+    modalClear: 'Wyczyść',
+    modalMarkAll: 'Wszystkie',
+    modalUnmarkAll: 'Żadne',
+    auto_water_on: 'Auto Podlewanie',
+    auto_plant_on: 'Auto Sianie',
+    auto_harvest_on: 'Auto Zbiór',
   },
   DE: {
     title: 'Zielone Imperium',
@@ -152,6 +198,7 @@ const translations = {
     auto: 'Auto',
     mine: 'Mine',
     mineTitle: 'Mine',
+    trophy: 'Trophäenraum',
     footer: 'Hergestellt mit ❤️ für engagierte Landwirte',
     shoppingListCleared: 'Einkaufsliste wurde geleert.',
     noActiveTab: 'Keine aktive Registerkarte gefunden.',
@@ -168,7 +215,29 @@ const translations = {
     active: 'Aktiv',
     clearShoppingList: '🗑️ Leeren',
     markAll: '✅ Alle markieren',
-    unmarkAll: '❌ Alle demarkieren'
+    unmarkAll: '❌ Alle demarkieren',
+    parkCalcInfo: '📊 Info',
+    parkCalcLoading: '⟳ Laden...',
+    parkCalcPoints: 'Dekorationspunkte:',
+    parkCalcVisitors: '👥 Besucher:',
+    parkCalcNext: 'Bis',
+    parkCalcGuests: 'Besucher:',
+    parkCalcNeeded: 'Pkt. benötigt',
+    parkCalcPathLabel: 'Wege: max.',
+    parkCalcEffective: 'Effektiv:',
+    parkCalcShowTable: '📋 Tabelle anzeigen',
+    fruitShop: 'Obstladen',
+    vegetableShop: 'Gemüseladen',
+    herbShop: 'Kräuterladen',
+    flowerShop: 'Blumenladen',
+    otherShop: 'Andere',
+    modalTitle: 'Einkaufsliste',
+    modalClear: 'Leeren',
+    modalMarkAll: 'Alle',
+    modalUnmarkAll: 'Keine',
+    auto_water_on: 'Auto Gießen',
+    auto_plant_on: 'Auto Pflanzen',
+    auto_harvest_on: 'Auto Ernten',
   }
 };
 
@@ -195,6 +264,10 @@ function initializeDOMElements() {
   elements.clearShoppingList = document.getElementById('clear-shopping-list');
   elements.markAllShoppingList = document.getElementById('mark-all-shopping-list');
   elements.unmarkAllShoppingList = document.getElementById('unmark-all-shopping-list');
+  elements.autoWaterBtn = document.getElementById('auto-water-btn');
+  elements.autoPlantBtn = document.getElementById('auto-plant-btn');
+  elements.autoHarvestBtn = document.getElementById('auto-harvest-btn');
+  elements.autoTrophies = document.getElementById('auto-trophies');
   
   // Enhanced Shopping Modal Elements
   elements.shoppingModal = document.getElementById('shopping-modal');
@@ -206,39 +279,24 @@ function initializeDOMElements() {
   
   // Enhanced Shopping List Button
   elements.showEnhancedShoppingList = document.getElementById('show-enhanced-shopping-list');
+  
+  // Park Calculator
+  elements.parkCalcBtn = document.getElementById('park-calc-btn');
 }
 
-// BUTTON HANDLERS - Will be set up in DOMContentLoaded
-// MESSAGING
+// MESSAGING: Now routes through background proxy
 function sendMessageToContent(action, data = {}) {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (!tabs[0]) return;
-    const tabId = tabs[0].id;
-
-    chrome.tabs.sendMessage(tabId, { action: 'ping' }, (pingResponse) => {
-      if (chrome.runtime.lastError || !pingResponse?.ready) {
-        showNotification('Open Zielone Imperium first!');
-        return;
-      }
-
-      const garden = pingResponse.location === 'main' ? 'Main Garden'
-        : pingResponse.location === 'water' ? 'Water Garden'
-          : 'Unknown';
-      if (elements.gardenStatus) elements.gardenStatus.textContent = garden;
-
-      chrome.tabs.sendMessage(tabId, { action, ...data }, (response) => {
-        if (chrome.runtime.lastError) {
-          console.error('Error:', chrome.runtime.lastError.message);
-          showNotification('Error: Reload game');
-          return;
-        }
-        if (response?.success) showNotification(response.message || 'Action completed!');
-      });
-    });
+  chrome.runtime.sendMessage({ action, ...data }, (response) => {
+    if (chrome.runtime.lastError) {
+      console.error('Error:', chrome.runtime.lastError.message);
+      showNotification('Error: Check connection to game');
+      return;
+    }
+    if (response?.success) showNotification(response.message || 'Action completed!');
   });
 }
 
-// NOTIFICATIONS
+// NOTIFICATIONS (single function, removed duplicate)
 function showNotification(message) {
   const toast = document.createElement('div');
   toast.textContent = message;
@@ -258,7 +316,6 @@ function showNotification(message) {
     animation: fadeInOut 3s forwards;
   `;
   document.body.appendChild(toast);
-
   setTimeout(() => {
     toast.style.opacity = '0';
     setTimeout(() => toast.remove(), 300);
@@ -274,49 +331,42 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// TASK COUNT – started inside DOMContentLoaded after elements are initialised
-
 function checkConnection() {
   const t = translations[currentLanguage];
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (!tabs[0]) {
-      updateStatus(false, t.noActiveTab || 'No active tab');
+  // Ping the content script through the background proxy
+  chrome.runtime.sendMessage({ action: 'ping' }, (response) => {
+    const indicator = elements.statusIndicator;
+    const statusText = document.getElementById('status-text');
+    const locationEl = document.getElementById('current-location');
+
+    if (chrome.runtime.lastError || !response?.ready) {
+      indicator.classList.remove('active');
+      indicator.classList.add('inactive');
+      statusText.textContent = t.inactive;
+      locationEl.textContent = '—';
       return;
     }
-    const tabId = tabs[0].id;
 
-    chrome.tabs.sendMessage(tabId, { action: 'ping' }, (response) => {
-      const indicator = elements.statusIndicator;
-      const statusText = document.getElementById('status-text');
-      const locationEl = document.getElementById('current-location');
+    indicator.classList.remove('inactive');
+    indicator.classList.add('active');
+    statusText.textContent = t.active || 'Active';
 
-      if (chrome.runtime.lastError || !response?.ready) {
-        indicator.classList.remove('active');
-        indicator.classList.add('inactive');
-        statusText.textContent = t.inactive;
-        locationEl.textContent = '—';
-        return;
-      }
-
-      indicator.classList.remove('inactive');
-      indicator.classList.add('active');
-      statusText.textContent = t.active || 'Active';
-
-      // Map location
-      const locMap = {
-        main: t.mainGarden || 'Main Garden',
-        water: t.waterGarden || 'Water Garden',
-        park: t.park || 'Park',
-        bonsai: t.bonsai || 'Bonsai',
-        birds: t.birds || 'Birds',
-        mine: t.mine || 'Mine',
-        city: t.city || 'City'
-      };
-      locationEl.textContent = locMap[response.location] || response.location || t.unknown || 'Unknown';
-    });
+    // Map location
+    const locMap = {
+      main: t.mainGarden || 'Main Garden',
+      water: t.waterGarden || 'Water Garden',
+      park: t.park || 'Park',
+      bonsai: t.bonsai || 'Bonsai',
+      birds: t.birds || 'Birds',
+      mine: t.mine || 'Mine',
+      trophy: t.trophy || 'Trophy Room',
+      city: t.city || 'City'
+    };
+    locationEl.textContent = locMap[response.location] || response.location || t.unknown || 'Unknown';
   });
 }
-// Real-time location updates
+
+// Real-time location updates from background proxy
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.action === 'locationChanged') {
     const t = translations[currentLanguage];
@@ -327,6 +377,7 @@ chrome.runtime.onMessage.addListener((msg) => {
       bonsai: t.bonsai || 'Bonsai',
       birds: t.birds || 'Birds',
       mine: t.mine || 'Mine',
+      trophy: t.trophy || 'Trophy Room',
       city: t.city || 'City'
     };
     const el = document.getElementById('current-location');
@@ -335,167 +386,121 @@ chrome.runtime.onMessage.addListener((msg) => {
   if (msg.action === 'wateringFinished') {
     watering = false;
     const t = translations[currentLanguage];
-    elements.waterCrops.textContent = t.waterCrops || 'Water Crops';
+    if (elements.waterCrops) elements.waterCrops.textContent = t.waterCrops || 'Water Crops';
   }
 });
+
 // SHOPPING LIST TOGGLE
 function toggleShoppingList() {
   elements.shoppingList.classList.toggle('visible');
 }
 
-// CALCULATE SHOPPING LIST (NEW FUNCTION)
+// CALCULATE SHOPPING LIST
 function calculateShoppingList() {
   const t = translations[currentLanguage];
-  // Request shopping list data from content script
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (!tabs[0]) {
-      console.error('No active tab found');
-      showNotification('No active tab found');
+  chrome.runtime.sendMessage({ action: 'getShoppingList' }, (response) => {
+    console.log('Shopping list response:', response);
+    
+    if (chrome.runtime.lastError) {
+      console.error('Error getting shopping list:', chrome.runtime.lastError.message);
+      showNotification('Error: Communication with game failed');
       return;
     }
-    const tabId = tabs[0].id;
-    console.log('Calculating shopping list from tab:', tabId);
+    
+    if (!response) {
+      console.error('No response received');
+      showNotification('Error: No response from game');
+      return;
+    }
+    
+    if (!response.items) {
+      console.error('Response missing items:', response);
+      showNotification('Error: No shopping list data or not in game');
+      return;
+    }
+    
+    if (response.items.length === 0) {
+      showNotification('Shopping list is empty');
+      return;
+    }
 
-    chrome.tabs.sendMessage(tabId, { action: 'getShoppingList' }, (response) => {
-      console.log('Shopping list response:', response);
-      
-      if (chrome.runtime.lastError) {
-        console.error('Error getting shopping list:', chrome.runtime.lastError.message);
-        showNotification('Error: Communication with game failed');
-        return;
-      }
-      
-      if (!response) {
-        console.error('No response received');
-        showNotification('Error: No response from game');
-        return;
-      }
-      
-      if (!response.items) {
-        console.error('Response missing items:', response);
-        showNotification('Error: No shopping list data or not in game');
-        return;
-      }
-      
-      if (response.items.length === 0) {
-        showNotification('Shopping list is empty');
-        return;
-      }
-
-      console.log('Items to calculate:', response.items);
-      
-      // Get current items from shopping list to merge with new ones
-      const currentItems = getCurrentShoppingListItems();
-      
-      // Always merge items from different gardens to create a cumulative list
-      const mergedItems = mergeShoppingListItems(currentItems, response.items);
-      showNotification(`List updated - total ${mergedItems.length} items`);
-      
-      // Update the shopping list content using proper CSS classes
-      const listHtml = mergedItems.map(item => {
-        const safeName = item.name.replace(/[^\w\s-]/g, '').replace(/\s+/g, ' ');
-        const itemId = safeName.toLowerCase().replace(/\s+/g, '-');
-        return `
-          <div class="shopping-item" data-item-name="${item.name}">
-            <input type="checkbox" id="item-${itemId}" class="shopping-checkbox">
-            <div class="shopping-item-content">
-              <div class="shopping-item-name">${item.name}</div>
-              <div class="shopping-item-quantity">${t.needed || 'Needed:'} ${item.needed}</div>
-            </div>
+    console.log('Items to calculate:', response.items);
+    
+    const currentItems = getCurrentShoppingListItems();
+    const mergedItems = mergeShoppingListItems(currentItems, response.items);
+    showNotification(`List updated - total ${mergedItems.length} items`);
+    
+    const listHtml = mergedItems.map(item => {
+      const safeName = item.name.replace(/[^\w\s-]/g, '').replace(/\s+/g, ' ');
+      const itemId = safeName.toLowerCase().replace(/\s+/g, '-');
+      return `
+        <div class="shopping-item" data-item-name="${item.name}">
+          <input type="checkbox" id="item-${itemId}" class="shopping-checkbox">
+          <div class="shopping-item-content">
+            <div class="shopping-item-name">${item.name}</div>
+            <div class="shopping-item-quantity">${t.needed || 'Needed:'} ${item.needed}</div>
           </div>
-        `;
-      }).join('');
-      
-      console.log('Generated HTML:', listHtml);
-      elements.shoppingListContent.innerHTML = listHtml;
-      console.log('Shopping list calculated successfully');
-    });
+        </div>
+      `;
+    }).join('');
+    
+    console.log('Generated HTML:', listHtml);
+    elements.shoppingListContent.innerHTML = listHtml;
+    console.log('Shopping list calculated successfully');
   });
-}
-
-// CHECK IF SHOPPING LIST SHOULD BE WIPED
-function shouldWipeShoppingList(currentItems, newItems) {
-  if (currentItems.length === 0) {
-    // No current items, don't wipe
-    return false;
-  }
-  
-  // Check if any new items are completely different from current items
-  const currentNames = new Set(currentItems.map(item => item.name.toLowerCase()));
-  const newNames = new Set(newItems.map(item => item.name.toLowerCase()));
-  
-  // If there's no overlap at all, it's likely a different garden
-  const hasOverlap = [...newNames].some(name => currentNames.has(name));
-  
-  // If no overlap and we have items in both lists, wipe
-  return !hasOverlap && currentItems.length > 0 && newItems.length > 0;
 }
 
 // LOAD SHOPPING LIST DATA
 function loadShoppingList() {
   const t = translations[currentLanguage];
-  // Request shopping list data from content script
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (!tabs[0]) {
-      console.error('No active tab found');
-      elements.shoppingListContent.innerHTML = `<p style="color: #ff5252;">${t.noActiveTab || 'No active tab found.'}</p>`;
+  chrome.runtime.sendMessage({ action: 'getShoppingList' }, (response) => {
+    console.log('Shopping list response:', response);
+    
+    if (chrome.runtime.lastError) {
+      console.error('Error getting shopping list:', chrome.runtime.lastError.message);
+      elements.shoppingListContent.innerHTML = `<p style="color: #ff5252;">${t.communicationError || 'Error: Communication with game failed.'}</p>`;
       return;
     }
-    const tabId = tabs[0].id;
-    console.log('Requesting shopping list from tab:', tabId);
+    
+    if (!response) {
+      console.error('No response received');
+      elements.shoppingListContent.innerHTML = `<p style="color: #ff5252;">${t.noResponse || 'Error: No response from game.'}</p>`;
+      return;
+    }
+    
+    if (!response.items) {
+      console.error('Response missing items:', response);
+      elements.shoppingListContent.innerHTML = `<p style="color: #ff5252;">${t.noShoppingData || 'Error: No shopping list data or not in game.'}</p>`;
+      return;
+    }
+    
+    if (response.items.length === 0) {
+      elements.shoppingListContent.innerHTML = `<p style="color: #fffb48;">${t.shoppingListEmpty || 'Shopping list is empty.'}</p>`;
+      return;
+    }
 
-    chrome.tabs.sendMessage(tabId, { action: 'getShoppingList' }, (response) => {
-      console.log('Shopping list response:', response);
-      
-      if (chrome.runtime.lastError) {
-        console.error('Error getting shopping list:', chrome.runtime.lastError.message);
-        elements.shoppingListContent.innerHTML = `<p style="color: #ff5252;">${t.communicationError || 'Error: Communication with game failed.'}</p>`;
-        return;
-      }
-      
-      if (!response) {
-        console.error('No response received');
-        elements.shoppingListContent.innerHTML = `<p style="color: #ff5252;">${t.noResponse || 'Error: No response from game.'}</p>`;
-        return;
-      }
-      
-      if (!response.items) {
-        console.error('Response missing items:', response);
-        elements.shoppingListContent.innerHTML = `<p style="color: #ff5252;">${t.noShoppingData || 'Error: No shopping list data or not in game.'}</p>`;
-        return;
-      }
-      
-      if (response.items.length === 0) {
-        elements.shoppingListContent.innerHTML = `<p style="color: #fffb48;">${t.shoppingListEmpty || 'Shopping list is empty.'}</p>`;
-        return;
-      }
-
-      console.log('Items to display:', response.items);
-      
-      // Get current items from shopping list to merge with new ones
-      const currentItems = getCurrentShoppingListItems();
-      
-      // Merge current items with new items from this garden
-      const mergedItems = mergeShoppingListItems(currentItems, response.items);
-      
-      const listHtml = mergedItems.map(item => {
-        const safeName = item.name.replace(/[^\w\s-]/g, '').replace(/\s+/g, ' ');
-        const itemId = safeName.toLowerCase().replace(/\s+/g, '-');
-        return `
-          <div class="shopping-item" data-item-name="${item.name}">
-            <input type="checkbox" id="item-${itemId}" class="shopping-checkbox">
-            <div class="shopping-item-content">
-              <div class="shopping-item-name">${item.name}</div>
-              <div class="shopping-item-quantity">${t.needed || 'Needed:'} ${item.needed}</div>
-            </div>
+    console.log('Items to display:', response.items);
+    
+    const currentItems = getCurrentShoppingListItems();
+    const mergedItems = mergeShoppingListItems(currentItems, response.items);
+    
+    const listHtml = mergedItems.map(item => {
+      const safeName = item.name.replace(/[^\w\s-]/g, '').replace(/\s+/g, ' ');
+      const itemId = safeName.toLowerCase().replace(/\s+/g, '-');
+      return `
+        <div class="shopping-item" data-item-name="${item.name}">
+          <input type="checkbox" id="item-${itemId}" class="shopping-checkbox">
+          <div class="shopping-item-content">
+            <div class="shopping-item-name">${item.name}</div>
+            <div class="shopping-item-quantity">${t.needed || 'Needed:'} ${item.needed}</div>
           </div>
-        `;
-      }).join('');
-      
-      console.log('Generated HTML:', listHtml);
-      elements.shoppingListContent.innerHTML = listHtml;
-      console.log('Shopping list content set successfully');
-    });
+        </div>
+      `;
+    }).join('');
+    
+    console.log('Generated HTML:', listHtml);
+    elements.shoppingListContent.innerHTML = listHtml;
+    console.log('Shopping list content set successfully');
   });
 }
 
@@ -529,10 +534,8 @@ function mergeShoppingListItems(currentItems, newItems) {
     const existingIndex = merged.findIndex(item => item.name === newItem.name);
     
     if (existingIndex !== -1) {
-      // Item exists, add the needed amounts
       merged[existingIndex].needed += newItem.needed;
     } else {
-      // Item doesn't exist, add it
       merged.push({ name: newItem.name, needed: newItem.needed });
     }
   });
@@ -542,7 +545,6 @@ function mergeShoppingListItems(currentItems, newItems) {
 
 // ENHANCED SHOPPING LIST WITH PRODUCT IMAGES
 function showEnhancedShoppingList() {
-  // Get current items from shopping list (no calculations, just display existing list)
   const currentItems = getCurrentShoppingListItems();
   
   if (currentItems.length === 0) {
@@ -550,13 +552,9 @@ function showEnhancedShoppingList() {
     return;
   }
   
-  // Get translation for current language
   const t = translations[currentLanguage];
-  
-  // Group items by shop categories
   const groupedItems = groupItemsByShop(currentItems);
   
-  // Generate enhanced modal content with product images, grouped by shops
   let modalHtml = '';
   
   // Shop 1: Fruits
@@ -565,7 +563,7 @@ function showEnhancedShoppingList() {
       <div class="shopping-shop-group">
         <div class="shopping-shop-header">
           <span class="shopping-shop-icon">🍎</span>
-          <span class="shopping-shop-title">Fruit Shop</span>
+          <span class="shopping-shop-title">${t.fruitShop || 'Fruit Shop'}</span>
         </div>
         <div class="shopping-shop-items">
     `;
@@ -596,7 +594,7 @@ function showEnhancedShoppingList() {
       <div class="shopping-shop-group">
         <div class="shopping-shop-header">
           <span class="shopping-shop-icon">🥕</span>
-          <span class="shopping-shop-title">Vegetable Shop</span>
+          <span class="shopping-shop-title">${t.vegetableShop || 'Vegetable Shop'}</span>
         </div>
         <div class="shopping-shop-items">
     `;
@@ -627,7 +625,7 @@ function showEnhancedShoppingList() {
       <div class="shopping-shop-group">
         <div class="shopping-shop-header">
           <span class="shopping-shop-icon">🌿</span>
-          <span class="shopping-shop-title">Herb Shop</span>
+          <span class="shopping-shop-title">${t.herbShop || 'Herb Shop'}</span>
         </div>
         <div class="shopping-shop-items">
     `;
@@ -658,7 +656,7 @@ function showEnhancedShoppingList() {
       <div class="shopping-shop-group">
         <div class="shopping-shop-header">
           <span class="shopping-shop-icon">🌷</span>
-          <span class="shopping-shop-title">Flower Shop</span>
+          <span class="shopping-shop-title">${t.flowerShop || 'Flower Shop'}</span>
         </div>
         <div class="shopping-shop-items">
     `;
@@ -689,7 +687,7 @@ function showEnhancedShoppingList() {
       <div class="shopping-shop-group">
         <div class="shopping-shop-header">
           <span class="shopping-shop-icon">🛒</span>
-          <span class="shopping-shop-title">Other Shop</span>
+          <span class="shopping-shop-title">${t.otherShop || 'Other Shop'}</span>
         </div>
         <div class="shopping-shop-items">
     `;
@@ -731,7 +729,6 @@ function groupItemsByShop(items) {
   items.forEach(item => {
     const lowerName = item.name.toLowerCase();
     
-    // Fruits
     if (lowerName.includes('jabł') || lowerName.includes('grusz') || lowerName.includes('śliwk') || 
         lowerName.includes('wiśn') || lowerName.includes('morel') || lowerName.includes('brzoskw') || 
         lowerName.includes('agrest') || lowerName.includes('malin') || lowerName.includes('jeżyn') || 
@@ -740,7 +737,6 @@ function groupItemsByShop(items) {
         lowerName.includes('dzika') || lowerName.includes('owoce') || lowerName.includes('owoc')) {
       grouped.fruits.push(item);
     }
-    // Vegetables
     else if (lowerName.includes('sałat') || lowerName.includes('marchew') || lowerName.includes('ziemniak') || 
              lowerName.includes('pomidor') || lowerName.includes('ogórek') || lowerName.includes('cebula') || 
              lowerName.includes('czosnek') || lowerName.includes('rzodkiew') || lowerName.includes('szczypiorek') || 
@@ -751,21 +747,18 @@ function groupItemsByShop(items) {
              lowerName.includes('warzyw')) {
       grouped.vegetables.push(item);
     }
-    // Herbs
     else if (lowerName.includes('mięta') || lowerName.includes('bazylia') || lowerName.includes('oregano') || 
              lowerName.includes('rozmaryn') || lowerName.includes('tymianek') || lowerName.includes('szalotka') || 
              lowerName.includes('pietruszka') || lowerName.includes('koper') || lowerName.includes('ziola') || 
              lowerName.includes('ziół')) {
       grouped.herbs.push(item);
     }
-    // Flowers
     else if (lowerName.includes('róża') || lowerName.includes('stokrotka') || lowerName.includes('tulipan') || 
              lowerName.includes('stulista') || lowerName.includes('hiacynt') || lowerName.includes('fiołek') || 
              lowerName.includes('niezapominajka') || lowerName.includes('magnolia') || lowerName.includes('kwiat') || 
              lowerName.includes('kwiaty')) {
       grouped.flowers.push(item);
     }
-    // Other/Unknown
     else {
       grouped.other.push(item);
     }
@@ -776,7 +769,6 @@ function groupItemsByShop(items) {
 
 // GET PRODUCT IMAGE CLASS BASED ON ITEM NAME
 function getProductImageClass(itemName) {
-  // Map item names to Zielone Imperium CSS classes
   const itemMap = {
     // Vegetables
     'sałaty': 'e2',
@@ -799,22 +791,6 @@ function getProductImageClass(itemName) {
     'kukurydza': 'e22',
     'dynia': 'e32',
     'bataty': 'e33',
-    'rzepa': 'e34',
-    'rzepa': 'e35',
-    'rzepa': 'e48',
-    'rzepa': 'e49',
-    'rzepa': 'e50',
-    'rzepa': 'e51',
-    'rzepa': 'e52',
-    'rzepa': 'e54',
-    'rzepa': 'e58',
-    'rzepa': 'e59',
-    'rzepa': 'e60',
-    'rzepa': 'e64',
-    'rzepa': 'e67',
-    'rzepa': 'e68',
-    'rzepa': 'e69',
-    'rzepa': 'e70',
     
     // Herbs
     'mięta': 'e400',
@@ -842,11 +818,7 @@ function getProductImageClass(itemName) {
     'borówki': 'e112',
     'czereśnie': 'e113',
     'czarny bez': 'e114',
-    'dzika róza': 'e115',
-    'dziki czereśnia': 'e116',
-    'dziki czarny bez': 'e117',
-    'dzika dzika róza': 'e118',
-    'dzika dzika dzika róza': 'e119',
+    'dzika róża': 'e115',
     
     // Flowers
     'róża': 'e200',
@@ -859,23 +831,19 @@ function getProductImageClass(itemName) {
     'magnolia': 'e207'
   };
   
-  // Convert to lowercase for case-insensitive matching
   const lowerItemName = itemName.toLowerCase();
   
-  // Check for exact match
   if (itemMap[lowerItemName]) {
     return itemMap[lowerItemName];
   }
   
-  // Check for partial matches
   for (const [key, value] of Object.entries(itemMap)) {
     if (lowerItemName.includes(key)) {
       return value;
     }
   }
   
-  // Return default if no match found
-  return 'e2'; // Default to salad image
+  return 'e2';
 }
 
 // GET FALLBACK EMOJI FOR ITEMS WITHOUT CSS CLASSES
@@ -924,7 +892,7 @@ function getFallbackEmoji(itemName) {
     'borówki': '🫐',
     'czereśnie': '🍒',
     'czarny bez': '🍇',
-    'dzika róza': '🌹',
+    'dzika róża': '🌹',
     'róża': '🌹',
     'stokrotka': '🌼',
     'tulipan': '🌷',
@@ -937,19 +905,16 @@ function getFallbackEmoji(itemName) {
   
   const lowerItemName = itemName.toLowerCase();
   
-  // Check for exact match
   if (emojiMap[lowerItemName]) {
     return emojiMap[lowerItemName];
   }
   
-  // Check for partial matches
   for (const [key, value] of Object.entries(emojiMap)) {
     if (lowerItemName.includes(key)) {
       return value;
     }
   }
   
-  // Return default emoji based on item type
   if (lowerItemName.includes('owoce') || lowerItemName.includes('owoc') || lowerItemName.includes('jabł') || lowerItemName.includes('grusz') || lowerItemName.includes('śliwk') || lowerItemName.includes('wiśn') || lowerItemName.includes('morel') || lowerItemName.includes('brzoskw') || lowerItemName.includes('agrest') || lowerItemName.includes('malin') || lowerItemName.includes('jeżyn') || lowerItemName.includes('porzeczk') || lowerItemName.includes('truskawk') || lowerItemName.includes('jagod') || lowerItemName.includes('borówk') || lowerItemName.includes('czereśn') || lowerItemName.includes('czarny') || lowerItemName.includes('dzika')) {
     return '🍎';
   } else if (lowerItemName.includes('warzywa') || lowerItemName.includes('warzyw') || lowerItemName.includes('sałat') || lowerItemName.includes('marchew') || lowerItemName.includes('ziemniak') || lowerItemName.includes('pomidor') || lowerItemName.includes('ogórek') || lowerItemName.includes('cebula') || lowerItemName.includes('czosnek') || lowerItemName.includes('rzodkiew') || lowerItemName.includes('szczypiorek') || lowerItemName.includes('papryk') || lowerItemName.includes('rzep') || lowerItemName.includes('burak') || lowerItemName.includes('kalafior') || lowerItemName.includes('kapust') || lowerItemName.includes('fasola') || lowerItemName.includes('groch') || lowerItemName.includes('szparagi') || lowerItemName.includes('kukurydza') || lowerItemName.includes('dynia') || lowerItemName.includes('bataty')) {
@@ -960,57 +925,83 @@ function getFallbackEmoji(itemName) {
     return '🌷';
   }
   
-  // Return generic plant emoji for unknown items
   return '🌱';
 }
 
-// INITIAL + INTERVAL – moved inside DOMContentLoaded below
+// Automate toggles through background proxy
+function setupAutoButtons() {
+  ['water', 'plant', 'harvest'].forEach(type => {
+    const btn = document.getElementById(`auto-${type}-btn`);
+    if (!btn) return;
+    
+    // Load saved state
+    chrome.storage.local.get([`auto_${type}`], (result) => {
+      if (result[`auto_${type}`]) {
+        btn.classList.add('active');
+        btn.dataset.active = 'true';
+      }
+    });
+    
+    btn.addEventListener('click', () => {
+      const isActive = btn.dataset.active === 'true';
+      
+      if (isActive) {
+        chrome.runtime.sendMessage({ action: 'stopAuto', type }, (response) => {
+          btn.classList.remove('active');
+          btn.dataset.active = 'false';
+        });
+      } else {
+        chrome.runtime.sendMessage({ action: 'startAuto', type }, (response) => {
+          btn.classList.add('active');
+          btn.dataset.active = 'true';
+        });
+      }
+    });
+  });
+}
 
-// Initialize speed controls and shopping list
+// INITIAL + INTERVAL
 document.addEventListener('DOMContentLoaded', () => {
-  // Initialize DOM elements first
   initializeDOMElements();
-  
-  // Set up all button event listeners after DOM is loaded
   setupButtonListeners();
-  
   initializeSpeedControls();
   initializeLanguageToggle();
-  
-  // Initialize shopping list visibility state
+  setupAutoButtons();
 
-  // Task count polling – must run after initializeDOMElements
+  // Task count polling
   setInterval(() => {
     chrome.storage.local.get(['activeTasks'], (result) => {
       if (elements.tasksCount) elements.tasksCount.textContent = result.activeTasks || 0;
     });
   }, 1000);
 
-  // Connection status polling – must run after initializeDOMElements
+  // Connection status polling – now through background proxy
   checkConnection();
   setInterval(checkConnection, 2000);
 });
 
 // Set up all button event listeners after DOM is loaded
 function setupButtonListeners() {
-  // BUTTON HANDLERS
   elements.findSeller.addEventListener('click', () => {
     sendMessageToContent('findSeller');
   });
 
   elements.waterCrops.addEventListener('click', () => {
     watering = !watering;
-
     if (watering) {
-      elements.waterCrops.textContent = 'Stop Watering';
-      showNotification('Watering started');
+      elements.waterCrops.textContent = '✓ Water ON';
+      // Send once — tick-based automation continues automatically via alarms if auto is on
       sendMessageToContent('start_watering');
     } else {
-      elements.waterCrops.textContent = 'Water Crops';
-      showNotification('Watering stopped');
+      updateWaterBtnLabel();
       sendMessageToContent('stop_watering');
     }
   });
+
+  function updateWaterBtnLabel() {
+    const t = translations[currentLanguage];
+    elements.waterCrops.textContent = t.waterCrops || 'Water';
+  }
 
   elements.plantCrops.addEventListener('click', () => {
     sendMessageToContent('plantCrops');
@@ -1019,7 +1010,6 @@ function setupButtonListeners() {
   elements.harvestCrops.addEventListener('click', () => {
     sendMessageToContent('harvestCrops');
   });
-
 
   elements.showShoppingList.addEventListener('click', () => {
     toggleShoppingList();
@@ -1057,14 +1047,12 @@ function setupButtonListeners() {
     checkboxes.forEach(cb => cb.checked = false);
   });
 
-  // Close modal when clicking outside
   elements.shoppingModal.addEventListener('click', (e) => {
     if (e.target === elements.shoppingModal) {
       elements.shoppingModal.classList.remove('visible');
     }
   });
 
-  // SHOPPING LIST MANAGEMENT BUTTONS
   elements.clearShoppingList.addEventListener('click', () => {
     const t = translations[currentLanguage];
     elements.shoppingListContent.innerHTML = `<p style="color: #fffb48;">${t.shoppingListCleared || 'Shopping list cleared.'}</p>`;
@@ -1080,81 +1068,73 @@ function setupButtonListeners() {
     checkboxes.forEach(cb => cb.checked = false);
   });
 
-  // PRZEŁĄCZANIE OGRODÓW, LOKACJI I FUNKCJI
+  // Park calculator button – sends request to content script to show overlay on game page
+  if (elements.parkCalcBtn) {
+    elements.parkCalcBtn.addEventListener('click', () => {
+      sendMessageToContent('showParkCalcOverlay');
+    });
+  }
+
+  // Garden and location buttons
   [
     'go-garden1', 'go-garden2', 'go-water', 'go-park', 
     'go-bonsai', 'go-birds', 'go-mine', 'auto-mine',
-    'renew-park', 'bonsai-trim', 'birds-auto'
+    'renew-park', 'bonsai-trim', 'birds-auto',
+    'go-trophy', 'auto-trophies'
   ].forEach(id => {
     const btn = document.getElementById(id);
     if (!btn) return;
 
-    // === FUNKCJE SPECJALNE ===
     if (id === 'renew-park') {
-      btn.addEventListener('click', () => {
-        sendMessageToContent('renewParkDecorations');
-      });
+      btn.addEventListener('click', () => sendMessageToContent('renewParkDecorations'));
     } 
     else if (id === 'bonsai-trim') {
-      btn.addEventListener('click', () => {
-        sendMessageToContent('bonsaiTrim');
-      });
+      btn.addEventListener('click', () => sendMessageToContent('bonsaiTrim'));
     }
     else if (id === 'birds-auto') {
-      btn.addEventListener('click', () => {
-        sendMessageToContent('birdsAuto');
-      });
+      btn.addEventListener('click', () => sendMessageToContent('birdsAuto'));
     }
     else if (id === 'auto-mine') {
-      btn.addEventListener('click', () => {
-        sendMessageToContent('autoMine');
-      });
+      btn.addEventListener('click', () => sendMessageToContent('autoMine'));
     }
-    // === PRZEŁĄCZANIE OGRODÓW (go-...) ===
+    else if (id === 'auto-trophies') {
+      btn.addEventListener('click', () => sendMessageToContent('autoTrophies'));
+    }
     else if (id.startsWith('go-')) {
       const action = id.replace('go-', '').replace(/([a-z])([A-Z])/g, '$1$2').toUpperCase();
-      btn.addEventListener('click', () => {
-        sendMessageToContent(`go${action}`);
-      });
+      btn.addEventListener('click', () => sendMessageToContent(`go${action}`));
     }
   });
 }
 
 // Initialize speed controls
 function initializeSpeedControls() {
-  // Set default speeds
   setDefaultSpeeds();
   
-  // Add event listeners for speed buttons
   const speedButtons = document.querySelectorAll('.speed-btn');
   speedButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       const speed = btn.dataset.speed;
       const action = btn.dataset.action;
       
-      // Update active state
       const actionButtons = document.querySelectorAll(`.speed-btn[data-action="${action}"]`);
       actionButtons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       
-      // Save speed preference
       const speedSettings = {};
       speedSettings[action] = speed;
       chrome.storage.local.set(speedSettings);
       
-      // Show feedback
       showSpeedFeedback(action, speed);
     });
   });
 }
 
-// Set default speeds
 function setDefaultSpeeds() {
   chrome.storage.local.get(['water', 'plant'], (result) => {
     const waterSpeed = result.water || 'normal';
     const plantSpeed = result.plant || 'normal';
     
-    // Activate default buttons
     const waterBtn = document.querySelector(`.speed-btn[data-speed="${waterSpeed}"][data-action="water"]`);
     const plantBtn = document.querySelector(`.speed-btn[data-speed="${plantSpeed}"][data-action="plant"]`);
     
@@ -1163,49 +1143,29 @@ function setDefaultSpeeds() {
   });
 }
 
-// Show speed feedback
 function showSpeedFeedback(action, speed) {
   const actionText = action === 'water' ? 'Watering' : 'Planting';
   const speedText = speed === 'fast' ? 'Fast' : speed === 'normal' ? 'Normal' : 'Slow';
-  
-  showToast(`${actionText} speed set to ${speedText}`);
-}
-
-// Show toast notification
-function showToast(message) {
-  const toast = document.createElement('div');
-  toast.textContent = message;
-  toast.style.cssText = `
-    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-    background: rgba(255, 251, 72, 0.95); color: #000; padding: 12px 24px;
-    border-radius: 8px; font-size: 13px; font-weight: 600; z-index: 10000;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3); animation: fadeInOut 2s forwards;
-  `;
-  document.body.appendChild(toast);
-  setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 1700);
+  showNotification(`${actionText} speed set to ${speedText}`);
 }
 
 function updateLanguage() {
   const t = translations[currentLanguage];
   if (!t) return;
   
-  // Helper to safely set text content
   const setText = (selector, text) => {
     const el = document.querySelector(selector);
     if (el) el.textContent = text;
   };
   
-  // Helper to safely set text by ID
   const setIdText = (id, text) => {
     const el = document.getElementById(id);
     if (el) el.textContent = text;
   };
   
-  // Update header text
   setText('.header h1', t.title);
   setText('.header p', t.subtitle);
   
-  // Update status labels
   const statusLabels = document.querySelectorAll('.status-label');
   if (statusLabels.length >= 4) {
     statusLabels[0].textContent = t.extensionStatus;
@@ -1215,7 +1175,6 @@ function updateLanguage() {
   }
   setIdText('status-text', t.inactive);
   
-  // Update speed labels
   const speedLabels = document.querySelectorAll('.speed-label');
   if (speedLabels.length >= 2) {
     speedLabels[0].textContent = '💧 ' + t.wateringSpeed;
@@ -1230,7 +1189,6 @@ function updateLanguage() {
     speedBtns[3].textContent = t.slow;
   }
   
-  // Update task buttons (structure: icon span + text span)
   const updateTaskBtn = (id, text) => {
     const btn = document.getElementById(id);
     if (btn) {
@@ -1245,7 +1203,20 @@ function updateLanguage() {
   updateTaskBtn('find-seller', t.sellItems);
   updateTaskBtn('show-shopping-list', t.shoppingList);
   
-  // Update current shopping list items labels (Potrzeba/Needed)
+  // Update auto-toggle buttons
+  const autoBtnLabels = {
+    'auto-water-btn': t.auto_water_on || 'Auto Water',
+    'auto-plant-btn': t.auto_plant_on || 'Auto Plant',
+    'auto-harvest-btn': t.auto_harvest_on || 'Auto Harvest',
+  };
+  Object.entries(autoBtnLabels).forEach(([id, text]) => {
+    const btn = document.getElementById(id);
+    if (btn) {
+      const textSpan = btn.querySelector('span:last-child');
+      if (textSpan) textSpan.textContent = text;
+    }
+  });
+  
   const itemQuantities = document.querySelectorAll('.shopping-item-quantity, .shopping-modal-item-quantity');
   itemQuantities.forEach(el => {
     const text = el.textContent;
@@ -1255,7 +1226,6 @@ function updateLanguage() {
     }
   });
   
-  // Update location card headers (structure: icon + text)
   const updateLocationHeader = (selector, icon, text) => {
     const header = document.querySelector(selector);
     if (header) header.textContent = icon + ' ' + text;
@@ -1265,29 +1235,30 @@ function updateLanguage() {
   updateLocationHeader('.location-card.bonsai .location-header', '🎋', t.bonsaiTitle);
   updateLocationHeader('.location-card.birds .location-header', '🐦', t.birdsTitle);
   updateLocationHeader('.location-card.mine .location-header', '⛏️', t.mineTitle);
+  updateLocationHeader('.location-card.trophy .location-header', '🏆', t.trophy);
   
-  // Update gardens section - navigation buttons
   const navButtons = [
     ['go-garden1', t.garden1],
     ['go-garden2', t.garden2],
     ['go-water', t.waterGarden],
     ['go-park', t.park],
     ['renew-park', t.renew],
+    ['park-calc-btn', t.parkCalcInfo],
     ['go-bonsai', t.bonsai],
     ['bonsai-trim', t.trim],
     ['go-birds', t.birds],
     ['birds-auto', t.auto],
     ['go-mine', t.mine],
-    ['auto-mine', t.auto]
+    ['auto-mine', t.auto],
+    ['go-trophy', t.trophy],
+    ['auto-trophies', t.auto]
   ];
   
   navButtons.forEach(([id, text]) => {
     const btn = document.getElementById(id);
     if (btn) {
-      // Button has icon span + text node
       const span = btn.querySelector('span');
       if (span) {
-        // Keep the span, update the text after it
         btn.childNodes.forEach(node => {
           if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
             node.textContent = ' ' + text;
@@ -1299,7 +1270,11 @@ function updateLanguage() {
     }
   });
   
-  // Update shopping list
+  setIdText('shopping-modal-title', '🛒 ' + (t.modalTitle || 'Shopping List'));
+  setIdText('clear-shopping-modal', '🗑️ ' + (t.modalClear || 'Clear'));
+  setIdText('mark-all-shopping-modal', '✅ ' + (t.modalMarkAll || 'All'));
+  setIdText('unmark-all-shopping-modal', '❌ ' + (t.modalUnmarkAll || 'None'));
+  
   setText('.shopping-title', t.shoppingList);
   setIdText('mark-all-shopping-list', '✅');
   setIdText('unmark-all-shopping-list', '❌');
@@ -1307,12 +1282,10 @@ function updateLanguage() {
   setIdText('show-enhanced-shopping-list', '📊 ' + (t.enhancedList || 'Details'));
   setIdText('refresh-shopping-list', '🔄 ' + (t.scan || 'Scan'));
   
-  // Update footer
   setText('.footer', t.footer);
 }
 
 function toggleLanguage() {
-  // Cycle: PL -> EN -> DE -> PL
   if (currentLanguage === 'PL') {
     currentLanguage = 'EN';
   } else if (currentLanguage === 'EN') {
@@ -1326,25 +1299,21 @@ function toggleLanguage() {
   saveLanguagePreference();
 }
 
-// Load saved language preference
 function loadLanguagePreference() {
   chrome.storage.local.get(['language'], (result) => {
     if (result.language && translations[result.language]) {
       currentLanguage = result.language;
     }
-    // Update UI after loading preference
     const langText = document.getElementById('language-text');
     if (langText) langText.textContent = currentLanguage;
     updateLanguage();
   });
 }
 
-// Save language preference
 function saveLanguagePreference() {
   chrome.storage.local.set({ language: currentLanguage });
 }
 
-// Initialize language toggle after DOM is loaded
 function initializeLanguageToggle() {
   languageToggle = document.getElementById('language-toggle');
   languageText = document.getElementById('language-text');
@@ -1353,6 +1322,5 @@ function initializeLanguageToggle() {
     languageToggle.addEventListener('click', toggleLanguage);
   }
   
-  // Load saved preference
   loadLanguagePreference();
 }
