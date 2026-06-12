@@ -23,9 +23,13 @@ Rozszerzenie do przeglądarki Chrome (Manifest V3) automatyzujące zadania w grz
 | **Podlewanie** | Automatyczne podlewanie suchych roślin. |
 | **Sianie** | Sianie wybranych roślin na pustych polach. |
 | **Zbiór** | Automatyczne zbieranie gotowych plonów. |
+| **Auto Przyciski** | Przełączniki Auto Podlewanie / Auto Sianie / Auto Zbiór z ciągłą automatyzacją. |
 | **Sprzedaż** | Szybka sprzedaż produktów klientom (Wimpom). |
 | **Lista Zakupów** | Skanowanie zapasów i zamówień w celu wyliczenia braków. |
-| **Lokacje** | Automatyzacja Parku, Bonsai, Ptasiej Poczty i Kopalni. |
+| **Rozszerzona Lista Zakupów** | Modal z obrazkami produktów i grupowaniem według sklepów. |
+| **Kalkulator Parku** | Nakładka z analizą punktów dekoracji, progów gości i wąskich gardeł. |
+| **Lokacje** | Automatyzacja Parku, Bonsai, Ptasiej Poczty, Kopalni i Pokoju Trofeów. |
+| **Pokój Trofeów** | Nawigacja do pokoju trofeów i automatyczne klikanie wszystkich dostępnych trofeów. |
 
 ### Status
 - **Status: Aktywne/Active**: Rozszerzenie jest połączone z grą.
@@ -56,7 +60,8 @@ This is a **Chrome Browser Extension** (Manifest V3) that automates farming task
 ├── background.js      # Extension lifecycle & script injection
 ├── content.js         # Automation logic & DOM manipulation
 ├── popup.html         # Side panel UI
-└── popup.js           # UI logic & communication
+├── popup.js           # UI logic & communication
+└── icon.png           # Extension icon
 ```
 
 ### Automation Features
@@ -65,9 +70,13 @@ This is a **Chrome Browser Extension** (Manifest V3) that automates farming task
 | **Watering** | Automatically waters dry crops in all gardens. |
 | **Planting** | Plants selected crops in empty tiles. |
 | **Harvesting** | Uses the harvester tool to collect ready crops. |
+| **Auto Toggles** | Auto Water / Auto Plant / Auto Harvest toggle buttons for continuous automation. |
 | **Find Seller** | Automatically sells products to NPC buyers (Wimps). |
 | **Shopping List** | Scans orders and inventory to generate a missing items list. |
-| **Location Tasks** | Auto-renew Park, Trim Bonsai, Birds automation, and Auto-Mine. |
+| **Enhanced Shopping List** | Modal with product images and grouping by shop (Fruits, Vegetables, Herbs, Flowers). |
+| **Park Calculator** | Overlay with decoration point analysis, visitor thresholds, and bottleneck detection. |
+| **Location Tasks** | Auto-renew Park, Trim Bonsai, Birds automation, Auto-Mine, and Trophy Room. |
+| **Trophy Room** | Navigate to trophy room and auto-click all available trophies across all pages. |
 
 ### Status Indicators
 - **Status: Active**: The extension is connected to the game.
@@ -97,9 +106,13 @@ Eine Chrome-Erweiterung (Manifest V3) zur Automatisierung von Aufgaben im Spiel 
 | **Gießen** | Automatisches Gießen trockener Pflanzen. |
 | **Anbauen** | Pflanzen ausgewählter Sorten auf leeren Feldern. |
 | **Ernten** | Automatisches Einholen fertiger Ernten. |
+| **Auto Toggles** | Auto Gießen / Auto Pflanzen / Auto Ernten mit kontinuierlicher Automatisierung. |
 | **Verkaufen** | Schneller Verkauf an NPC-Kunden (Wimps). |
 | **Einkaufsliste** | Abgleich von Lager und Aufträgen zur Bedarfsermittlung. |
-| **Standorte** | Automatisierung für Park, Bonsai, Vogelpost und Mine. |
+| **Erweiterte Einkaufsliste** | Modal mit Produktbildern und Gruppierung nach Läden. |
+| **Parkrechner** | Overlay mit Dekorationspunktanalyse, Besucherschwellen und Engpässen. |
+| **Standorte** | Automatisierung für Park, Bonsai, Vogelpost, Mine und Trophäenraum. |
+| **Trophäenraum** | Navigation zum Trophäenraum und automatisches Klicken aller verfügbaren Trophäen. |
 
 ### Status-Anzeigen
 - **Status: Aktiv/Active**: Die Erweiterung ist mit dem Spiel verbunden.
