@@ -83,13 +83,13 @@
       color: var(--md-on-surface); 
       font-size: 14px; 
       overflow-y: auto;
-      max-height: 600px; /* Maksymalna wysokość panelu Chrome */
+      max-height: 600px;
     }
     .container { 
       max-width: 400px; 
       margin: 0 auto; 
       padding: var(--md-space); 
-      padding-bottom: 50px; /* Miejsce na samym dole, żeby lista nie była "przyklejona" */
+      padding-bottom: 50px;
     }
 
     /* Header */
@@ -197,6 +197,7 @@
     .location-card.bonsai { border-left: 3px solid var(--bonsai-primary); }
     .location-card.birds { border-left: 3px solid var(--birds-primary); }
     .location-card.mine { border-left: 3px solid var(--mine-primary); }
+    .location-card.trophy { border-left: 3px solid #8B4513; }
 
     .location-header {
       display: flex; align-items: center; gap: 6px;
@@ -207,6 +208,7 @@
     .location-card.bonsai .location-header { color: var(--bonsai-on-container); }
     .location-card.birds .location-header { color: var(--birds-on-container); }
     .location-card.mine .location-header { color: var(--mine-on-container); }
+    .location-card.trophy .location-header { color: #8B4513; }
 
     .location-btn {
       width: 100%; padding: 10px; border: none; border-radius: var(--md-radius-sm);
@@ -223,6 +225,8 @@
     .location-btn.birds:hover { background: var(--birds-primary); color: white; }
     .location-btn.mine { background: var(--mine-container); color: var(--mine-on-container); }
     .location-btn.mine:hover { background: var(--mine-primary); color: white; }
+    .location-btn.trophy { background: #D2B48C; color: #5D3A1A; }
+    .location-btn.trophy:hover { background: #8B4513; color: white; }
 
     /* Full width location cards */
     .location-full {
@@ -271,6 +275,18 @@
       box-shadow: var(--md-elevation-1);
     }
 
+    /* Auto toggle buttons */
+    .auto-toggle-btn {
+      padding: 8px 4px; border: none; border-radius: var(--md-radius-sm);
+      font-size: 11px; font-weight: 600; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      background: var(--md-surface-variant); color: var(--md-on-surface);
+      transition: all 0.2s ease;
+    }
+    .auto-toggle-btn:hover { background: var(--md-on-surface-variant); color: white; }
+    .auto-toggle-btn.active { background: var(--garden-primary); color: white; box-shadow: 0 0 0 2px var(--garden-container); }
+    .auto-toggle-btn .icon { font-size: 16px; }
+
     /* Modal */
     .modal {
       display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -300,16 +316,16 @@
         display: inline-block;
         width: 32px;
         height: 32px;
-        background-image: url('https://s1.zieloneimperium.pl/pics/produkte.png'); /* Adres serwera gry */
+        background-image: url('https://s1.zieloneimperium.pl/pics/produkte.png');
         background-repeat: no-repeat;
         zoom: 0.8;
     }
 
     /* Pozycje ikon (gra używa sprite-sheet) */
-    .e2 { background-position: 0 0; }        /* Sałata */
-    .e3 { background-position: -32px 0; }   /* Marchew */
-    .e5 { background-position: -96px 0; }   /* Pomidory */
-    .e110 { background-position: -256px -96px; } /* Truskawki */
+    .e2 { background-position: 0 0; }
+    .e3 { background-position: -32px 0; }
+    .e5 { background-position: -96px 0; }
+    .e110 { background-position: -256px -96px; }
   </style>
 </head>
 <body>
@@ -385,6 +401,18 @@
           <span class="icon">🌾</span>
           <span>Harvest</span>
         </button>
+        <button class="auto-toggle-btn" id="auto-water-btn">
+          <span class="icon">🔄</span>
+          <span>Auto W</span>
+        </button>
+        <button class="auto-toggle-btn" id="auto-plant-btn">
+          <span class="icon">🔄</span>
+          <span>Auto P</span>
+        </button>
+        <button class="auto-toggle-btn" id="auto-harvest-btn">
+          <span class="icon">🔄</span>
+          <span>Auto H</span>
+        </button>
         <button class="task-btn secondary" id="find-seller">
           <span class="icon">🏪</span>
           <span>Sell</span>
@@ -402,6 +430,7 @@
         <div class="location-header">🌳 Park</div>
         <button class="location-btn park" id="go-park">🌳 Go</button>
         <button class="location-btn park" id="renew-park">🔄 Renew</button>
+        <button class="location-btn park" id="park-calc-btn">📊 Info</button>
       </div>
       
       <div class="location-card bonsai">
@@ -426,6 +455,17 @@
       </div>
     </div>
 
+    <!-- Trophy Room -->
+    <div class="location-grid">
+      <div class="location-card trophy location-full">
+        <div class="location-header">🏆 Trophy Room</div>
+        <div style="display: flex; gap: var(--md-space-xs);">
+          <button class="location-btn trophy" id="go-trophy" style="flex: 1; margin-bottom: 0;">🏆 Go</button>
+          <button class="location-btn trophy" id="auto-trophies" style="flex: 1; margin-bottom: 0;">🔄 Collect</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Shopping List -->
     <div id="shopping-list" class="card shopping-list">
       <div class="shopping-controls">
@@ -442,7 +482,7 @@
     <div id="shopping-modal" class="modal">
       <div class="modal-content">
         <div class="modal-header">
-          <h3>🛒 Shopping List</h3>
+          <h3 id="shopping-modal-title">🛒 Shopping List</h3>
           <button class="modal-close" id="close-shopping-modal">&times;</button>
         </div>
         <div class="card">
